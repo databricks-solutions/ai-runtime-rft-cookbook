@@ -1,0 +1,26 @@
+# OfficeQA on verl, Qwen3.5-35B-A3B: calibrate the judge (1 A10).
+# Submit with the run id, volume root and image filled in: see README.md, "Running a recipe".
+experiment_name: rft-officeqa-verl-35b-calibrate
+compute:
+  num_accelerators: 1
+  accelerator_type: GPU_1xA10
+environment:
+  docker_image:
+    url: <verl-image>
+code_source:
+  type: snapshot
+  snapshot:
+    root_path: ../../../../..
+    include_paths: [pyproject.toml, README.md, src, frameworks, recipes]
+env_variables:
+  RFT_RECIPE: officeqa/verl/qwen3.5-35b-a3b_h100x16
+  RFT_RUN_ID: <run-id>
+  RFT_VOLUME_ROOT: <volume-root>
+  RFT_SET: ""                 # recipe overrides, e.g. "train.seed=7 eval.seed=42"
+  TOKENIZERS_PARALLELISM: "false"
+  HF_HOME: /tmp/hf
+  HF_HUB_DISABLE_XET: "1"
+  RAY_TEMP_DIR: /tmp/ray
+max_retries: 0
+timeout_minutes: 60
+command: bash ${CODE_SOURCE_PATH}/frameworks/verl/launch/node.sh calibrate

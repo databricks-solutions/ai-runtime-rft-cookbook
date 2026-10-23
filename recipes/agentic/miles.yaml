@@ -1,0 +1,52 @@
+# The generic agentic recipe on upstream miles (frameworks/miles). Each episode is the cookbook's
+# Chat Completions harness against miles' session server (agentic_tool_call, session server v2);
+# the cookbook scores it and miles reads the score through --custom-rm-path. Training runs
+# upstream's launcher for the model (model.launcher) with the cookbook's hooks added.
+framework: miles
+stages: [prep, stage_model, train]
+
+agent: {}            # overrides of the task's budgets (max_turns, max_response_tokens, ...)
+
+data:
+  max_prompt_tokens: 1024
+
+model:
+  launcher: null               # upstream's model launcher under the pinned miles, e.g. scripts/run_glm5_3_flash.py
+  model_name: null             # its --model-name
+  megatron_type: null          # upstream's model-args name; the converted weights are <megatron_type>_torch_dist
+  convert_args: ""             # extra arguments to upstream's HF -> torch_dist converter
+  tool_parser: null            # SGLang's --tool-call-parser for the model
+  reasoning_parser: null       # SGLang's --reasoning-parser, if the model reasons
+  tito_model: null             # miles' --tito-model: the template and token boundary it verified for
+                               # the model family (qwen36, glm53, ...); null is miles' best-effort default
+  processor_from: null         # {id, revision, files}: files the checkpoint lacks, copied in from another
+                               # repository at train time (e.g. a slice cut from a larger model)
+  chat_template_kwargs: {}
+
+train:
+  num_rollout: 2               # rollouts; one update each
+  rollout_batch_size: 4        # prompts per rollout
+  n_samples_per_prompt: 4      # trajectories per prompt (the GRPO group)
+  temperature: 1.0
+  # the algorithm; null keeps the model launcher's own value
+  lr: null
+  kl_loss_coef: null
+  clip_ratio_low: null
+  clip_ratio_high: null
+  entropy_coeff: null
+  save_interval: 1             # rollouts between saves; every save is published
+  save_hf: false               # Hugging Face weights in every save (needed by export and eval)
+  seed: 42
+  max_consecutive_exclusions: 32   # excluded episodes in a row that stop the run
+
+rollout:
+  request_timeout_s: 600
+  extra_args: []               # further miles flags, after the cookbook's
+
+checkpoint:
+  hash_files: false
+
+compute:
+  nodes: 1
+  accelerator: GPU_8xB300
+  timeout_minutes: 120         # includes the time the job waits for a node

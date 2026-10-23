@@ -1,0 +1,101 @@
+{
+ "attempt": 0,
+ "collection": [],
+ "episode_id": "officeqa-fixture-0",
+ "metadata": {
+  "messages": 5,
+  "tool_calls_used": 1
+ },
+ "model": {
+  "id": "scripted"
+ },
+ "question_id": "UID0001",
+ "sample_index": 0,
+ "schema": "rft-cookbook/episode/v1",
+ "score": null,
+ "settings": {
+  "budgets": {
+   "generation_reserve": 50,
+   "max_context_tokens": null,
+   "max_response_tokens": 4000,
+   "max_tool_calls": null,
+   "max_tool_calls_per_turn": 1,
+   "max_turn_tokens": 500,
+   "max_turns": 4,
+   "tool_output_bytes": 16384,
+   "tool_timeout_s": 60.0
+  },
+  "prompt_sha256": "eeba9c8b6135076d22cecebb5267bfa04404875837196902caf0637754e86069",
+  "terminal": {
+   "kind": "tool",
+   "tool": "submit_report"
+  },
+  "tools_sha256": "efa519d96362b3d3f658be56897c851eaf5b65deac9c7b1a4faf23a319b61b77"
+ },
+ "split": "eval",
+ "status": "ok",
+ "task": "officeqa",
+ "task_version": "1",
+ "termination": {
+  "answer": "{\"answer\": \"100\", \"path\": [{\"id\": \"a\", \"observation\": \"obs_1\", \"claim\": \"FY1940 national defense was 100 million dollars.\"}]}",
+  "detail": null,
+  "reason": "answer",
+  "terminal_turn": 1
+ },
+ "turns": [
+  {
+   "finish_reason": "stop",
+   "generated_tokens": 0,
+   "index": 0,
+   "policy_version": null,
+   "prompt_tokens": 1218,
+   "reasoning": null,
+   "text": "",
+   "tool_calls": [
+    {
+     "arguments": "{\"file_name\": \"treasury_1941_01.txt\"}",
+     "call_id": "r1",
+     "delivered_text": "[observation obs_1]\nTable 3. Expenditures\nNational defense | FY1940 | 100 million dollars\nVeterans | FY1940 | 557 million dollars",
+     "delivered_to_turn": 1,
+     "delivery": "delivered",
+     "detail": null,
+     "executed": true,
+     "latency_s": null,
+     "name": "read_document",
+     "observation_id": "obs_1",
+     "parse_error": null,
+     "sandbox": null,
+     "status": "ok",
+     "truncated": false
+    }
+   ]
+  },
+  {
+   "finish_reason": "stop",
+   "generated_tokens": 0,
+   "index": 1,
+   "policy_version": null,
+   "prompt_tokens": 1342,
+   "reasoning": null,
+   "text": "",
+   "tool_calls": [
+    {
+     "arguments": "{\"answer\": \"100\", \"path\": [{\"id\": \"a\", \"observation\": \"obs_1\", \"claim\": \"FY1940 national defense was 100 million dollars.\"}]}",
+     "call_id": "s1",
+     "delivered_text": null,
+     "delivered_to_turn": null,
+     "delivery": "not_run",
+     "detail": null,
+     "executed": false,
+     "latency_s": null,
+     "name": "submit_report",
+     "observation_id": null,
+     "parse_error": null,
+     "sandbox": null,
+     "status": "ok",
+     "truncated": false
+    }
+   ]
+  }
+ ]
+}

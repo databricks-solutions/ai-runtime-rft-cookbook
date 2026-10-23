@@ -1,0 +1,339 @@
+{
+ "schema": "rft-cookbook/reference-results/v1",
+ "description": "Base Qwen3.5-35B-A3B on OfficeQA: per-question supported pass@1 and answer accuracy of the frozen baseline of the measured verl-on-air run (4 samples per question, temperature 1.0).",
+ "source": "verl-on-air results/officeqa/2026-10-11-final-comparison.json (baseline column) at b088a42",
+ "model": {
+  "id": "Qwen/Qwen3.5-35B-A3B",
+  "revision": "59d61f3ce65a6d9863b86d2e96597125219dc754"
+ },
+ "policy": {
+  "max_turns": 128,
+  "generation_tokens_per_turn": 4096,
+  "prompt_tokens": 2048,
+  "tool_max_chars": 8000,
+  "parallel_tool_calls": 1,
+  "samples_per_question": 4,
+  "temperature": 1.0,
+  "top_p": 1.0,
+  "seed": 42,
+  "tool_format": "qwen3_coder",
+  "reward": "binary_correct_answer_and_supported_path",
+  "answer_tolerance": 0.0,
+  "judge_model": "system.ai.glm-5-3-flash",
+  "judge_reasoning_effort": "low",
+  "retrieval_backend": "bm25s",
+  "response_tokens_per_episode": 96256
+ },
+ "driver": "verl agent loop (continuous tokens) against a vLLM server, TP8",
+ "headline": {
+  "heldout": {
+   "questions": 43,
+   "pass_at_1": 0.0872093023255814,
+   "answer_accuracy": 0.19186046511627908,
+   "submission_rate": 0.8372093023255814
+  },
+  "probe": {
+   "questions": 16,
+   "pass_at_1": 0.296875,
+   "answer_accuracy": 0.453125,
+   "submission_rate": 0.859375
+  }
+ },
+ "per_question": {
+  "UID0003": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0004": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0007": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0010": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0012": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.25
+  },
+  "UID0022": {
+   "split": "heldout",
+   "pass_at_1": 0.75,
+   "answer_accuracy": 0.75
+  },
+  "UID0025": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.25
+  },
+  "UID0027": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0030": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0042": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.5
+  },
+  "UID0044": {
+   "split": "heldout",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.25
+  },
+  "UID0049": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.25
+  },
+  "UID0055": {
+   "split": "heldout",
+   "pass_at_1": 0.5,
+   "answer_accuracy": 0.5
+  },
+  "UID0056": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.5
+  },
+  "UID0058": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0065": {
+   "split": "heldout",
+   "pass_at_1": 0.5,
+   "answer_accuracy": 0.75
+  },
+  "UID0068": {
+   "split": "heldout",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 1.0
+  },
+  "UID0083": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0086": {
+   "split": "heldout",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.5
+  },
+  "UID0096": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0100": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0102": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0111": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.5
+  },
+  "UID0124": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0133": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0140": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0147": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0168": {
+   "split": "heldout",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.5
+  },
+  "UID0174": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0179": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0180": {
+   "split": "heldout",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.75
+  },
+  "UID0188": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0190": {
+   "split": "heldout",
+   "pass_at_1": 0.5,
+   "answer_accuracy": 0.5
+  },
+  "UID0193": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0195": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0213": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0214": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0219": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0220": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.25
+  },
+  "UID0221": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0224": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0228": {
+   "split": "heldout",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.25
+  },
+  "UID0245": {
+   "split": "heldout",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0034": {
+   "split": "probe",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0063": {
+   "split": "probe",
+   "pass_at_1": 0.5,
+   "answer_accuracy": 0.5
+  },
+  "UID0075": {
+   "split": "probe",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.5
+  },
+  "UID0076": {
+   "split": "probe",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.25
+  },
+  "UID0135": {
+   "split": "probe",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.25
+  },
+  "UID0162": {
+   "split": "probe",
+   "pass_at_1": 0.75,
+   "answer_accuracy": 1.0
+  },
+  "UID0169": {
+   "split": "probe",
+   "pass_at_1": 0.75,
+   "answer_accuracy": 1.0
+  },
+  "UID0170": {
+   "split": "probe",
+   "pass_at_1": 0.5,
+   "answer_accuracy": 0.75
+  },
+  "UID0182": {
+   "split": "probe",
+   "pass_at_1": 0.5,
+   "answer_accuracy": 0.5
+  },
+  "UID0186": {
+   "split": "probe",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.25
+  },
+  "UID0199": {
+   "split": "probe",
+   "pass_at_1": 0.5,
+   "answer_accuracy": 0.5
+  },
+  "UID0211": {
+   "split": "probe",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.75
+  },
+  "UID0223": {
+   "split": "probe",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0227": {
+   "split": "probe",
+   "pass_at_1": 0.0,
+   "answer_accuracy": 0.0
+  },
+  "UID0236": {
+   "split": "probe",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.5
+  },
+  "UID0246": {
+   "split": "probe",
+   "pass_at_1": 0.25,
+   "answer_accuracy": 0.5
+  }
+ }
+}

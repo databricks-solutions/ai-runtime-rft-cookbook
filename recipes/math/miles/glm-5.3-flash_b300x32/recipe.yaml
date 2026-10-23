@@ -1,0 +1,54 @@
+# Training trial on upstream miles: the full GLM-5.3-Flash (45 layers, 288 experts, about 300B
+# parameters) with a calculator on four 8xB300 nodes, colocated in upstream's 32-GPU layout (TP8/PP4/EP8
+# training, four SGLang engines of 8 GPUs). A few rollouts at full size: episodes through the session
+# server, training, weight sync, and one resumable checkpoint (model, optimizer, RNG) of the whole model.
+# Status: trained on GPU, not qualified. 3 rollouts of 4 prompts x 8 samples, 3 updates (13 to 19 min
+# per rollout and update, mostly the offloaded update), the FP8 weight check passed with
+# --check-weight-update-allow-quant-error, and the step-3 checkpoint (4.8 TB, resumable) was published.
+# The job still ended FAILED: one node exited non-zero after the head finished cleanly, while Ray
+# actors were still exiting; nodes now wait for them (rft_cookbook.air.cluster), not yet GPU-verified.
+extends: agentic/miles
+description: Math on upstream miles, GLM-5.3-Flash, 4 nodes (training trial).
+task: math
+
+model:
+  id: zai-org/GLM-5.3-Flash
+  revision: eb9eb208eb0d988989d07a6a12d0fdeb5f52574a
+  launcher: scripts/run_glm5_3_flash.py
+  model_name: GLM-5.3-Flash
+  megatron_type: glm5.3-flash
+  # Converted on one node, the experts split over its 8 GPUs (unsplit, every GPU would hold the whole
+  # model); torch_dist reshards to the training layout when it loads.
+  convert_args: "--expert-model-parallel-size 8"
+  tool_parser: glm47
+  reasoning_parser: glm45
+
+data:                          # the math quickstart's data: one prepared copy serves every framework
+  levels: [1, 2, 3]
+  train_limit: 0
+  eval_limit: 0
+
+agent:
+  max_turns: 3
+  max_response_tokens: 4096    # upstream's --rollout-max-response-len for this model
+  max_turn_tokens: 4096
+
+train:
+  num_rollout: 3
+  rollout_batch_size: 4
+  n_samples_per_prompt: 8      # upstream's GRPO group for this model
+  save_interval: 3             # one save, after the last rollout
+
+rollout:
+  extra_args:
+    # Upstream's launcher checks that SGLang holds exactly the trainer's weights after every update.
+    # The checkpoint is FP8: the trainer holds it in BF16 and the update quantizes it again with fresh
+    # block scales, so routed-expert weights may differ by one FP8 step (1 ULP); anything beyond still
+    # fails the run.
+    - --check-weight-update-allow-quant-error
+
+compute:
+  nodes: 4
+  accelerator: GPU_8xB300
+  timeout_minutes: 240         # stage_model on one node: download, conversion, copy to the volume
+  train_timeout_minutes: 480

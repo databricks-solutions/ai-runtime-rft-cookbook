@@ -1,0 +1,79 @@
+# OfficeQA on upstream miles: the full GLM-5.3-Flash (about 300B parameters, every parameter trained)
+# on eight 8xB300 nodes in upstream's colocated 64-GPU layout (TP8/PP4/EP16 training, CP1; eight
+# SGLang engines of 8 GPUs), with the OfficeQA task, data, budgets, judge and sandbox of the Qwen3.6
+# recipes: episodes of up to 128 turns in a 98,304-token context.
+#
+# A measurement, not a recipe that is known to fit: upstream miles cannot split GLM-5.3's sequences
+# over GPUs (its DSA indexer rejects context parallelism, miles_plugins/models/glm5_next/dsa.py), so
+# a long episode is one micro-batch on one TP8 group. The run records whether that holds in memory
+# and how long a step takes; a 150K-token run of this model has used context parallelism (CP8) on a
+# separate 32-GPU trainer, which needs a change upstream does not have.
+#
+# The policy and the judge are the same model family (the hosted GLM-5.3-Flash judges the evidence).
+# Training keeps upstream's algorithm for this model (no KL term: a reference copy of a 300B model
+# would not fit beside it); the recipe sets only the task's sampling and batch.
+# Status: untested.
+extends: agentic/miles
+description: OfficeQA on upstream miles, GLM-5.3-Flash, 8 nodes (long-context measurement).
+task: officeqa
+stages: [prep, stage_model, stage_judge, calibrate, train]
+
+model:
+  id: zai-org/GLM-5.3-Flash
+  revision: eb9eb208eb0d988989d07a6a12d0fdeb5f52574a
+  launcher: scripts/run_glm5_3_flash.py
+  model_name: GLM-5.3-Flash
+  megatron_type: glm5.3-flash
+  convert_args: "--expert-model-parallel-size 8"   # as recipes/math/miles/glm-5.3-flash_b300x32
+  tool_parser: glm47
+  reasoning_parser: glm45
+  tito_model: glm53                   # GLM-5.3's template (thinking kept across turns) and token boundary
+
+data:
+  max_prompt_tokens: 2048             # the OfficeQA recipes' data: one prepared copy serves them all
+
+agent: {}                             # the task's measured budgets (128 turns, 4,096 tokens per turn)
+
+scoring:
+  sandbox: strict
+  compute: {timeout_s: 15, mem_mb: 4096}
+  judge:
+    id: glm-5.3-flash-hosted-support-v1
+    provider: databricks
+    models: [system.ai.glm-5-3-flash]
+    tokenizer: {id: zai-org/GLM-5.3-Flash, revision: eb9eb208eb0d988989d07a6a12d0fdeb5f52574a}
+    max_model_len: 65536
+    max_tokens: 4096
+    timeout_s: 180
+    retries: 2
+    deadline_s: 600
+    reasoning_effort: low
+    concurrency: 16
+
+train:
+  num_rollout: 2
+  rollout_batch_size: 4
+  n_samples_per_prompt: 4
+  temperature: 1.0
+  save_interval: 2             # one save, after the last rollout (the math trial tests saving at scale)
+  save_hf: false
+  seed: 42
+  max_consecutive_exclusions: 32
+
+rollout:
+  request_timeout_s: 600
+  extra_args:
+    # Upstream's launcher checks that SGLang holds exactly the trainer's weights after every update.
+    # The checkpoint is FP8: the trainer holds it in BF16 and the update quantizes it again with fresh
+    # block scales, so routed-expert weights may differ by one FP8 step (1 ULP); anything beyond still
+    # fails the run.
+    - --check-weight-update-allow-quant-error
+
+checkpoint:
+  hash_files: false
+
+compute:
+  nodes: 8
+  accelerator: GPU_8xB300
+  timeout_minutes: 240
+  train_timeout_minutes: 600

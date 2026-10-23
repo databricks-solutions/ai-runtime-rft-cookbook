@@ -1,0 +1,8 @@
+{
+  "repository": "radixark/miles",
+  "release": "v0.1.3",
+  "commit": "8e99947cc950791b82c74e5392370cb43df70637",
+  "tarball": "https://codeload.github.com/radixark/miles/tar.gz/8e99947cc950791b82c74e5392370cb43df70637",
+  "tarball_sha256": "570d8cd9c49375dd2167a2e17f62d9def8ea899180b7c2c274cb62ddbf26cba5",
+  "why": "the release commit (#4275, not yet tagged) that miles' reference image radixark/miles:release-v0.1.3-ci was built from; frameworks/miles/image is that image on the AI Runtime base and checks the commit"
+}

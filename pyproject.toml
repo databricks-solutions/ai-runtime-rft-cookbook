@@ -1,0 +1,29 @@
+[build-system]
+# Installed at job start with `pip install --no-deps --no-build-isolation`: the backend must
+# already be in the framework image, so only setuptools is required.
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rft-cookbook"
+version = "0.1.0"
+description = "Framework-neutral agentic tasks, episode format, scoring, checkpoints and evidence for RFT on Databricks AI Runtime"
+readme = "README.md"
+requires-python = ">=3.10"
+# Every framework image already ships these. Nothing here may pull in an RL framework.
+dependencies = ["pyyaml>=6"]
+
+[project.optional-dependencies]
+math = ["sympy>=1.12", "pylatexenc>=2.10"]
+eval = ["openai>=1.40", "transformers>=4.45"]
+dev = ["pytest>=8", "sympy>=1.12", "pylatexenc>=2.10"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.md", "*.yaml", "*.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "frameworks/verl/tests"]
+addopts = "-q"

@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rft-miles"
+version = "0.1.0"
+description = "miles adapter for the RFT cookbook: agent function, reward and checkpoint hooks, launcher"
+requires-python = ">=3.10"
+# miles, SGLang, Megatron and torch come from the miles image and the pinned upstream source only.
+dependencies = ["rft-cookbook==0.1.0"]
+
+[tool.setuptools.packages.find]
+include = ["rft_miles*"]
+
+[tool.setuptools.package-data]
+rft_miles = ["miles.lock.json"]

@@ -1,0 +1,29 @@
+# OfficeQA on upstream miles, GLM-5.3-Flash: stage the judge's tokenizer (one A10).
+# Submit with the run id, volume root and image filled in: see README.md, "Running a recipe".
+experiment_name: rft-officeqa-miles-glm53-stage_judge
+compute:
+  num_accelerators: 1
+  accelerator_type: GPU_1xA10
+environment:
+  docker_image:
+    url: <miles-image>
+code_source:
+  type: snapshot
+  snapshot:
+    root_path: ../../../../..
+    include_paths: [pyproject.toml, README.md, src, frameworks, recipes]
+env_variables:
+  RFT_RECIPE: officeqa/miles/glm-5.3-flash_b300x64
+  RFT_RUN_ID: <run-id>
+  RFT_VOLUME_ROOT: <volume-root>
+  RFT_SET: ""                 # recipe overrides, e.g. "train.num_rollout=4"
+  TOKENIZERS_PARALLELISM: "false"
+  HF_HOME: /tmp/hf
+  HF_HUB_DISABLE_XET: "1"
+  RAY_TEMP_DIR: /tmp/ray
+  RFT_LOCAL_ROOT: /tmp/rft         # node-local scratch (B300 nodes have no /local_disk0)
+secrets:
+  HF_TOKEN: secret_scope/hf_token   # fill in: <scope>/<key> of a Databricks secret
+max_retries: 0
+timeout_minutes: 60
+command: bash ${CODE_SOURCE_PATH}/frameworks/miles/launch/node.sh stage_judge

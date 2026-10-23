@@ -1,0 +1,86 @@
+# OfficeQA on verl: Qwen3.6-35B-A3B answers Treasury Bulletin questions with retrieval and compute
+# tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
+#
+# Status: untested. The Qwen3.5 recipe (qwen3.5-35b-a3b_h100x16) with the newer model: the same
+# architecture, data, budgets, judge, evaluation and training settings. Its miles twin
+# (recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16) trains the same model with matched settings and
+# is compared with this run's baseline evaluation. There is no earlier measurement of this model
+# to check the baseline against, so there is no parity stage.
+extends: agentic/verl
+description: OfficeQA on verl, Qwen3.6-35B-A3B, hosted judge.
+task: officeqa
+stages: [prep, stage_model, stage_judge, calibrate, baseline_eval, train, export, eval, compare]
+
+model:
+  id: Qwen/Qwen3.6-35B-A3B
+  revision: 995ad96eacd98c81ed38be0c5b274b04031597b0
+  tool_parser: qwen3_coder
+  reasoning_parser: null              # the harness splits </think> itself, as training does
+  serve_args: [--language-model-only]
+  chat_template_kwargs: {}
+
+data:
+  max_prompt_tokens: 2048             # with the task's 96,256-token response budget: a 98,304 context
+
+agent: {}                             # the task's measured budgets (128 turns, 4,096 tokens per turn)
+
+scoring:
+  sandbox: strict                     # compute runs only inside bubblewrap
+  compute: {timeout_s: 15, mem_mb: 4096}
+  judge:
+    id: glm-5.3-flash-hosted-support-v1
+    provider: databricks              # the workspace AI gateway, with the job's own credentials
+    models: [system.ai.glm-5-3-flash]
+    tokenizer: {id: zai-org/GLM-5.3-Flash, revision: eb9eb208eb0d988989d07a6a12d0fdeb5f52574a}
+    max_model_len: 65536
+    max_tokens: 4096
+    timeout_s: 180
+    retries: 2
+    deadline_s: 600
+    reasoning_effort: low
+    concurrency: 16
+
+eval:
+  samples: 4
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  concurrency: 8
+  gpu_memory_utilization: 0.8
+  tensor_parallel: 8
+  request_timeout_s: 600
+  probe_splits: [probe]               # training questions evaluated on purpose, reported apart
+
+
+train:
+  rollout_n: 4
+  ppo_mini_batch_size: 4
+  parameter_sync_step: 1
+  total_training_steps: 100     # 400 prompt groups, 1,600 trajectories
+  lr: 1.0e-6
+  kl_loss_coef: 0.01            # as measured: low-variance KL to the base model (a reference on the trainer GPUs)
+  save_freq: 25
+  seed: 42
+
+strategy:
+  tp: 2
+  cp: 4
+  ep: 8
+  remove_padding: true          # as measured: packed sequences on the 35B MoE
+  fused_kernels: true           # as measured: the fused LM head keeps 98K-token sequences in memory
+
+checkpoint:
+  location: volume              # ~490 GB a save (70 GB weights, 420 GB optimizer), saved where it is published
+  hash_files: false             # sizes are checked; hashing would read every save back from the volume
+  keep: 2
+
+rollout:
+  tensor_parallel: 8
+
+compute:
+  nodes: 2
+  accelerator: GPU_8xH100
+  trainer_gpus: 8
+  rollout_gpus: 8
+  timeout_minutes: 240
+  train_timeout_minutes: 1080   # the Qwen3.5 run trained for about 7.5 hours

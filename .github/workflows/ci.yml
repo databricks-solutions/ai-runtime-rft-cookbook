@@ -1,0 +1,59 @@
+# CPU tiers of docs/architecture.md "Testing": unit, adapter contract, jobs and public safety.
+# GPU tiers never run here; they are maintainer-triggered AI Runtime jobs.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml==6.0.3 sympy==1.14.0 pylatexenc==2.10 setuptools
+      - run: pip install --no-deps --no-build-isolation -e .
+      - run: pytest tests
+
+  verl:
+    # The adapter against the pinned verl on CPU: real ToolAgentLoop, real Qwen3.5 tokenizer,
+    # Hydra composition of every resolved argument.
+    runs-on: ubuntu-latest
+    env:
+      VERL_COMMIT: 8718ca30a3f002f93b7c4fd99b9b2506718681bc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.*"
+      - run: >
+          pip install "transformers==5.12.1" "ray==2.*" hydra-core omegaconf "tensordict>=0.8.0,<=0.10.0,!=0.9.0"
+          numpy pandas "pyarrow>=19" pydantic pillow codetiming dill datasets cachetools pytest pyyaml
+          sympy pylatexenc jinja2 aiohttp fastapi uvicorn "TransferQueue==0.1.10" setuptools huggingface_hub
+      - run: pip install --no-deps "verl @ git+https://github.com/verl-project/verl.git@${VERL_COMMIT}"
+      - run: pip install --no-deps --no-build-isolation -e . -e frameworks/verl
+      - name: Qwen3.5 tokenizer and chat template
+        run: |
+          python -c "from huggingface_hub import snapshot_download as d; print(d('Qwen/Qwen3.5-0.8B', allow_patterns=['*.json','*.txt','*.jinja'], local_dir='/tmp/qwen3.5-tokenizer'))"
+          echo "RFT_TEST_TOKENIZER=/tmp/qwen3.5-tokenizer" >> "$GITHUB_ENV"
+      - run: pytest frameworks/verl/tests
+
+  miles:
+    # The adapter on CPU without miles: resolved launcher arguments, the agent function against a
+    # scripted endpoint, the reward and post-save hooks, the checked-in jobs.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest pyyaml==6.0.3 sympy==1.14.0 pylatexenc==2.10 setuptools transformers openai
+      - run: pip install --no-deps --no-build-isolation -e . -e frameworks/miles
+      - run: pytest frameworks/miles/tests

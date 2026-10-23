@@ -1,0 +1,98 @@
+# OfficeQA on verl: Qwen3.5-35B-A3B answers Treasury Bulletin questions with retrieval and compute
+# tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
+#
+# Status: untested (no qualification record yet). The base model's evaluation is compared with the
+# measured verl-on-air baseline (reference_baseline.json), paired by question, before training. The
+# reference model saw verl 0.10's reduced tool schemas, so parity runs as its own run with that view
+# (RFT_SET="eval.schema_view=verl-0.10-properties": baseline_eval, then parity; it agreed on
+# 2026-10-22); the training run keeps the full schemas and skips parity (its baseline, 15.1% held-out,
+# is above the reference's 8.7%).
+# Training follows the measured run: 100 updates of 4 prompts x 4 samples on 8 trainer + 8 rollout
+# H100s (two nodes). GPU runs 2026-10-22, two training seeds: held-out supported pass@1 15.1% ->
+# 22.1% (seed 42, +7.0 points, 95% interval [+1.2, +13.4]) and -> 20.9% (seed 7, +5.8 [0.0, +12.2]);
+# see docs/architecture.md, milestone 2.
+extends: agentic/verl
+description: OfficeQA on verl, Qwen3.5-35B-A3B, hosted judge.
+task: officeqa
+stages: [prep, stage_model, stage_judge, calibrate, baseline_eval, parity, train, export, eval, compare]
+
+model:
+  id: Qwen/Qwen3.5-35B-A3B
+  revision: 59d61f3ce65a6d9863b86d2e96597125219dc754
+  tool_parser: qwen3_coder
+  reasoning_parser: null              # the harness splits </think> itself, as training does
+  serve_args: [--language-model-only]
+  chat_template_kwargs: {}
+
+data:
+  max_prompt_tokens: 2048             # with the task's 96,256-token response budget: a 98,304 context
+
+agent: {}                             # the task's measured budgets (128 turns, 4,096 tokens per turn)
+
+scoring:
+  sandbox: strict                     # compute runs only inside bubblewrap
+  compute: {timeout_s: 15, mem_mb: 4096}
+  judge:
+    id: glm-5.3-flash-hosted-support-v1
+    provider: databricks              # the workspace AI gateway, with the job's own credentials
+    models: [system.ai.glm-5-3-flash]
+    tokenizer: {id: zai-org/GLM-5.3-Flash, revision: eb9eb208eb0d988989d07a6a12d0fdeb5f52574a}
+    max_model_len: 65536
+    max_tokens: 4096
+    timeout_s: 180
+    retries: 2
+    deadline_s: 600
+    reasoning_effort: low
+    concurrency: 16
+
+eval:
+  samples: 4
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  concurrency: 8
+  gpu_memory_utilization: 0.8
+  tensor_parallel: 8
+  request_timeout_s: 600
+  probe_splits: [probe]               # training questions evaluated on purpose, reported apart
+
+parity:
+  reference: reference_baseline.json
+  # reference metric -> this evaluation's measure (the episode score or a score component)
+  metrics: {pass_at_1: score, answer_accuracy: answer_correct}
+  # Agreement: every reference question evaluated, and the paired question-bootstrap 95% interval
+  # of each difference contains zero, on the held-out questions and on the probes.
+  max_abs_difference: null
+
+train:
+  rollout_n: 4
+  ppo_mini_batch_size: 4
+  parameter_sync_step: 1
+  total_training_steps: 100     # 400 prompt groups, 1,600 trajectories
+  lr: 1.0e-6
+  kl_loss_coef: 0.01            # as measured: low-variance KL to the base model (a reference on the trainer GPUs)
+  save_freq: 25
+  seed: 42
+
+strategy:
+  tp: 2
+  cp: 4
+  ep: 8
+  remove_padding: true          # as measured: packed sequences on the 35B MoE
+  fused_kernels: true           # as measured: the fused LM head keeps 98K-token sequences in memory
+
+checkpoint:
+  location: volume              # ~490 GB a save (70 GB weights, 420 GB optimizer), saved where it is published
+  hash_files: false             # sizes are checked; hashing would read every save back from the volume
+  keep: 2
+
+rollout:
+  tensor_parallel: 8
+
+compute:
+  nodes: 2
+  accelerator: GPU_8xH100
+  trainer_gpus: 8
+  rollout_gpus: 8
+  timeout_minutes: 240
+  train_timeout_minutes: 1080   # the measured run trained for about 9.5 hours

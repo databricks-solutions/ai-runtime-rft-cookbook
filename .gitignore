@@ -3,3 +3,16 @@
 __pycache__
 .idea/
 .env
+
+# Workspace settings: never committed (see site.example.env)
+site.env
+site.yaml
+*.egg-info/
+build/
+dist/
+.venv*/
+.pytest_cache/
+# Image build inputs that stay local
+frameworks/verl/image/certs/*
+!frameworks/verl/image/certs/.gitkeep
+frameworks/verl/image/vendor/

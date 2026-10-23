@@ -1,0 +1,27 @@
+# Math on upstream miles, GLM-5.3-Flash: train on four nodes (32 B300s).
+# Submit with the run id, volume root and image filled in: see README.md, "Running a recipe".
+experiment_name: rft-math-miles-glm53-train
+compute:
+  num_accelerators: 32
+  accelerator_type: GPU_8xB300
+environment:
+  docker_image:
+    url: <miles-image>
+code_source:
+  type: snapshot
+  snapshot:
+    root_path: ../../../../..
+    include_paths: [pyproject.toml, README.md, src, frameworks, recipes]
+env_variables:
+  RFT_RECIPE: math/miles/glm-5.3-flash_b300x32
+  RFT_RUN_ID: <run-id>
+  RFT_VOLUME_ROOT: <volume-root>
+  RFT_SET: ""                 # recipe overrides, e.g. "train.num_rollout=4"
+  TOKENIZERS_PARALLELISM: "false"
+  HF_HOME: /tmp/hf
+  HF_HUB_DISABLE_XET: "1"
+  RAY_TEMP_DIR: /tmp/ray
+  RFT_LOCAL_ROOT: /tmp/rft         # node-local scratch (B300 nodes have no /local_disk0)
+max_retries: 0
+timeout_minutes: 480
+command: bash ${CODE_SOURCE_PATH}/frameworks/miles/launch/node.sh train
