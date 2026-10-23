@@ -50,7 +50,7 @@ derived from upstream's and named after the model:
 
 | launcher | from upstream's | differs in |
 |---|---|---|
-| `rft_miles/launchers/qwen3_6_35b_a3b.py` | `scripts/run_qwen3_6_35b_a3b_mtp.py` | no MTP training or EAGLE decoding; verl's algorithm defaults (token-mean loss, dual-clip 3.0, weight decay 0.01, Adam beta2 0.999, MoE auxiliary loss 1e-3); verl's parallelism (TP2, CP4, EP8); OpenAI sampling defaults; any 8-GPU node; no download or conversion; the GLM launcher's options |
+| `rft_miles/launchers/qwen3_6_35b_a3b.py` | `scripts/run_qwen3_6_35b_a3b_mtp.py` | no MTP training or EAGLE decoding; verl's algorithm defaults (token-mean loss, dual-clip 3.0, weight decay 0.01, Adam beta2 0.999, MoE auxiliary loss 1e-3); verl's parallelism (TP2, CP4, EP8); training and serving on separate nodes; expandable CUDA segments for the trainer; OpenAI sampling defaults; any 8-GPU node; no download or conversion; the GLM launcher's options |
 
 ## Evaluation
 

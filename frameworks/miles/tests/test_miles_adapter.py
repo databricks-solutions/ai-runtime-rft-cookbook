@@ -159,6 +159,9 @@ def test_the_cookbook_launcher_trains_no_mtp_and_matches_verls_algorithm(monkeyp
     # no FlashInfer TRT-LLM kernels to build at start-up (the image has no prebuilt copies)
     assert flags["--sglang-attention-backend"] == flags["--sglang-moe-runner-backend"] == "triton"
     assert flags["--log-probs-backend"] == "fused"   # no fp32 copy of the logits on an 80 GB GPU
+    # the trainer's allocator grows its segments, as the shell that runs the command reads it
+    (env,) = [shlex.split(part)[0] for part in train.split("--train-env-vars")[1:]]
+    assert json.loads(env) == {"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}
     # separate GPUs, as verl's separate_async: the first node trains, the second serves
     assert "--colocate" not in flags and "--offload-train" not in flags
     assert (flags["--actor-num-nodes"], flags["--actor-num-gpus-per-node"], flags["--rollout-num-gpus"]) == ("1", "8", "8")

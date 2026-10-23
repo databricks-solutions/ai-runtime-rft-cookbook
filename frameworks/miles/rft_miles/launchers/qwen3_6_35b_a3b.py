@@ -25,6 +25,9 @@ any flag given here. Against upstream's Qwen3.6 launcher this one:
   engines (verl's vLLM rollout is TP8), and the weights go over NCCL after every update;
 - computes log-probabilities with miles' fused kernels, without the fp32 copy of the logits that an
   80 GB H100 cannot hold at 24,576 tokens a GPU;
+- lets the trainer's CUDA allocator grow its segments (`expandable_segments`): with fixed segments a
+  second update ran out of memory with 13 GiB reserved but unused; the trainer does not offload
+  (no torch_memory_saver, which expandable segments would break), and SGLang keeps its own settings;
 - fills request fields the client leaves out with OpenAI's defaults, never the model's
   generation_config.json (Qwen3.6's top_k=20 would apply silently);
 - serves attention and MoE with SGLang's Triton kernels, which run with what the image carries on
@@ -143,6 +146,7 @@ def train_args(args: ScriptArgs) -> str:
         f"--actor-num-gpus-per-node {args.num_gpus_per_node} "
         f"--rollout-num-gpus {(args.num_nodes - trainer_nodes) * args.num_gpus_per_node} "
         f"--num-gpus-per-node {args.num_gpus_per_node} "
+        """--train-env-vars '{"PYTORCH_CUDA_ALLOC_CONF":"expandable_segments:True"}' """
         "--distributed-timeout-minutes 60 "
         "--rollout-health-check-interval 300 "
         "--rollout-health-check-timeout 300 "
