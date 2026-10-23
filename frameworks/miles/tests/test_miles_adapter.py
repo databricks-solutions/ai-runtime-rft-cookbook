@@ -58,6 +58,7 @@ def test_the_cookbook_hooks_ride_on_upstreams_launcher(tmp_path):
     assert flags["--custom-rm-path"] == "rft_miles.reward.reward"
     assert flags["--custom-megatron-post-save-hook-path"] == "rft_miles.checkpoint.publish"
     assert flags["--save"] == flags["--load"] == plan["checkpoints"] == "/Volumes/cat/sch/vol/rft/runs/glm-test-01/checkpoints"
+    assert flags["--use-checkpoint-opt-param-scheduler"] is True   # a resume to more rollouts loads
     assert flags["--sglang-tool-call-parser"] == "glm47" and flags["--rollout-batch-size"] == "4"
     assert flags["--sglang-sampling-defaults"] == "openai"
     assert shlex.split(shlex.join(extra)) == extra   # survives upstream's --extra-args string

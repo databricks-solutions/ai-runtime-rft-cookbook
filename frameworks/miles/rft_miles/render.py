@@ -116,6 +116,9 @@ def miles_args(recipe: dict[str, Any], paths: dict[str, Any], task=None) -> list
             # generation_config.json (GLM-5.3-Flash: top_p 0.95; Qwen3.6: top_k 20)
             "--sglang-sampling-defaults", "openai",
             "--load", paths["checkpoints"], "--save", paths["checkpoints"], "--save-interval", str(t["save_interval"]),
+            # a resume keeps the learning-rate schedule it saved: a run resumed to more rollouts would
+            # otherwise fail Megatron's check that the two agree on the number of iterations
+            "--use-checkpoint-opt-param-scheduler",
             "--custom-megatron-post-save-hook-path", POST_SAVE,
             # miles appends its audit events to <save>/events by default, and a Volume cannot append; every
             # checkpoint carries a copy of them. Naming the directory would also switch on a full weight
