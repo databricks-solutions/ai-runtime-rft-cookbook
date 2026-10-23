@@ -1,0 +1,42 @@
+# Math quickstart: Qwen3.5-2B with a calculator on one 8xH100 node (4 trainer + 4 rollout GPUs).
+# MATH train levels 1-3, evaluated on MATH-500 before and after training.
+# Status: untested (no qualification record yet). This recipe qualifies plumbing (two updates,
+# publish, resume, one more update, export, evaluate the export), not a learning result. GPU
+# acceptance run 2026-10-21: every stage passed; MATH-500 61.8% -> 61.0%, no change, as expected.
+extends: agentic/verl
+description: Math quickstart on verl, Qwen3.5-2B, 1 node.
+task: math
+
+model:
+  id: Qwen/Qwen3.5-2B
+  revision: 15852e8c16360a2fea060d615a32b45270f8a8fc
+  tool_parser: qwen3_coder          # verl's parser and vLLM's --tool-call-parser
+  # No server-side reasoning parser: the harness splits on </think> exactly as the training loop
+  # does. vLLM's qwen3 parser reads a reply without </think> (Qwen3.5's default, non-thinking
+  # template) as all reasoning, which empties the answer.
+  reasoning_parser: null
+  serve_args: [--language-model-only]   # text-only episodes: vLLM skips the vision tower
+  chat_template_kwargs: {}
+
+data:
+  levels: [1, 2, 3]
+  train_limit: 0
+  eval_limit: 0
+
+agent:
+  max_turns: 4
+  max_response_tokens: 4096
+  max_turn_tokens: 2048
+
+train:
+  rollout_n: 4
+  ppo_mini_batch_size: 8
+  total_training_steps: 2
+  save_freq: 1
+
+compute:
+  nodes: 1
+  accelerator: GPU_8xH100
+  trainer_gpus: 4
+  rollout_gpus: 4
+  timeout_minutes: 60

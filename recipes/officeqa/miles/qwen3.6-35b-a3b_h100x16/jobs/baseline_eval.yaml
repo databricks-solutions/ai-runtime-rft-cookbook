@@ -1,0 +1,26 @@
+# OfficeQA on upstream miles, Qwen3.6-35B-A3B: evaluate the base model with vLLM, as every framework does (8 H100s).
+# Submit with the run id, volume root and image filled in: see README.md, "Running a recipe".
+experiment_name: rft-officeqa-miles-q36-baseline_eval
+compute:
+  num_accelerators: 8
+  accelerator_type: GPU_8xH100
+environment:
+  docker_image:
+    url: <verl-image>   # evaluation serves with vLLM from the verl image
+code_source:
+  type: snapshot
+  snapshot:
+    root_path: ../../../../..
+    include_paths: [pyproject.toml, README.md, src, frameworks, recipes]
+env_variables:
+  RFT_RECIPE: officeqa/miles/qwen3.6-35b-a3b_h100x16
+  RFT_RUN_ID: <run-id>
+  RFT_VOLUME_ROOT: <volume-root>
+  RFT_SET: ""                 # recipe overrides, e.g. "eval.baseline_run=<verl run id>"
+  TOKENIZERS_PARALLELISM: "false"
+  HF_HOME: /tmp/hf
+  HF_HUB_DISABLE_XET: "1"
+  RAY_TEMP_DIR: /tmp/ray
+max_retries: 0
+timeout_minutes: 240
+command: bash ${CODE_SOURCE_PATH}/frameworks/miles/launch/node.sh baseline_eval

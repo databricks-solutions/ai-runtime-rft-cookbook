@@ -1,0 +1,28 @@
+# OfficeQA on verl, Qwen3.5-35B-A3B: train (2 nodes of 8 H100s).
+# Submit with the run id, volume root and image filled in: see README.md, "Running a recipe".
+experiment_name: rft-officeqa-verl-35b-train
+compute:
+  num_accelerators: 16
+  accelerator_type: GPU_8xH100
+environment:
+  docker_image:
+    url: <verl-image>
+code_source:
+  type: snapshot
+  snapshot:
+    root_path: ../../../../..
+    include_paths: [pyproject.toml, README.md, src, frameworks, recipes]
+env_variables:
+  RFT_RECIPE: officeqa/verl/qwen3.5-35b-a3b_h100x16
+  RFT_RUN_ID: <run-id>
+  RFT_VOLUME_ROOT: <volume-root>
+  RFT_SET: ""                 # recipe overrides, e.g. "train.seed=7 eval.seed=42"
+  TOKENIZERS_PARALLELISM: "false"
+  HF_HOME: /tmp/hf
+  HF_HUB_DISABLE_XET: "1"
+  RAY_TEMP_DIR: /tmp/ray
+  CUDA_DEVICE_MAX_CONNECTIONS: "1"
+  VLLM_ALLREDUCE_USE_SYMM_MEM: "0"
+max_retries: 0
+timeout_minutes: 1080
+command: bash ${CODE_SOURCE_PATH}/frameworks/verl/launch/node.sh train

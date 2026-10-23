@@ -1,0 +1,80 @@
+# The generic agentic recipe on verl. Every agentic recipe for verl extends this one and sets
+# at least `task`, `model` and `compute`; see recipes/math/verl/qwen3.5-2b_h100x8.
+#
+# verl's V1 trainer in separate_async mode: training on `compute.trainer_gpus`, a standalone
+# vLLM rollout pool on `compute.rollout_gpus` (hybrid_engine=False), weights pushed over NCCL.
+# The cookbook agent loop runs the task with the shared episode policy and scores each episode.
+description: Generic agentic GRPO recipe for verl (V1 trainer, separate_async).
+framework: verl
+stages: [prep, stage_model, baseline_eval, train, export, eval, compare]
+
+agent: {}            # overrides of the task's budgets (max_turns, max_response_tokens, ...)
+
+data:
+  max_prompt_tokens: 1024
+
+train:
+  algorithm: grpo
+  norm_adv_by_std: true
+  rollout_n: 4                 # trajectories per prompt (the GRPO group)
+  ppo_mini_batch_size: 8       # prompts per optimizer update
+  parameter_sync_step: 1       # updates per global step; train_batch_size = this x ppo_mini_batch_size
+  ppo_epochs: 1
+  total_training_steps: 2
+  lr: 1.0e-6
+  kl_loss_coef: 0.0            # > 0 adds a reference model on the trainer GPUs
+  entropy_coeff: 0.0
+  clip_ratio_low: 0.2
+  clip_ratio_high: 0.28
+  temperature: 1.0
+  seed: 42
+  num_warmup_batches: 1
+  max_off_policy_threshold: 4  # model versions a trajectory may span before its group is dropped
+  max_consecutive_exclusions: 32   # failed episodes in a row (one agent-loop process) that stop the run
+  save_freq: 1
+  keep_local_checkpoints: 2
+  logger: [console]
+
+strategy:
+  engine: megatron
+  remove_padding: false          # packed (THD) sequences; only for models with a packed path
+  fused_kernels: false           # verl's fused LM head (logits never materialized whole)
+  tp: 1
+  pp: 1
+  cp: 1
+  ep: 1
+  etp: 1
+  param_offload: true
+  optimizer_offload: true
+  offload_fraction: 1.0
+
+rollout:
+  engine: vllm
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.7
+  enforce_eager: false
+  disable_custom_all_reduce: true   # H100 intra-node TP: avoids a CUDA-graph capture crash
+  prefix_caching: true              # safe: verl flushes the cache on every weight sync
+  agent_workers: 4
+  weight_bucket_mb: 2048            # must exceed the largest tensor (Qwen3.5 embedding ~0.97 GB)
+
+checkpoint:
+  location: local             # local: saved on local disk, published as a copy; volume: saved in place
+  hash_files: true
+  publish_failure: fail
+  keep: null                   # published checkpoints kept (newest first); null keeps all
+
+eval:
+  samples: 1
+  temperature: 0.0
+  top_p: 1.0
+  top_k: -1                   # the whole distribution, as in training rollouts
+  concurrency: 32
+  gpu_memory_utilization: 0.85
+  seed: null                  # sampling seed; null: train.seed (a replicate keeps its baseline's)
+  baseline_run: null          # null: compared with this run's baseline_eval; or another run's
+
+compute:
+  nodes: 1
+  accelerator: GPU_8xH100
+  timeout_minutes: 90

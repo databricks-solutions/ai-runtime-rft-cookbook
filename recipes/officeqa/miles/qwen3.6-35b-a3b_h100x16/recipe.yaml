@@ -1,0 +1,100 @@
+# OfficeQA on upstream miles: Qwen3.6-35B-A3B answers Treasury Bulletin questions with retrieval and
+# compute tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
+#
+# Status: untested. The twin of recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, matched setting by
+# setting so that the two frameworks' runs compare:
+#   the same   model and revision, data, agent budgets (128 turns, 4,096 tokens a turn, a 98,304-token
+#              context), judge and sandbox, evaluation (vLLM from the verl image, 43 held-out
+#              questions x 4 samples, seed 42; a run compared with the verl run's baseline uses
+#              `eval.baseline_run`), and training: GRPO over 100 updates of 4 prompts x 4 samples,
+#              learning rate 1e-6 constant, low-variance KL 0.01 to the base model, clip 0.2/0.28 and
+#              dual-clip 3.0, token-mean loss, AdamW (weight decay 0.01, betas 0.9/0.999), gradient
+#              clip 1.0, MoE auxiliary loss 1e-3, TP2 x CP4 x EP8 training, no MTP layer, excluded
+#              episodes drop their group (rft_miles.agent), an episode trains as one sequence with
+#              every generated token in context (rft_miles.session), old log-probs recomputed by the
+#              trainer without an importance-sampling correction, saves every 25 updates; and the
+#              hardware: two nodes of 8 H100s, one training, one serving (a TP8 engine), the weights
+#              sent over NCCL after every update.
+#   different  staleness: miles' train_async generates each rollout while the previous one trains, so
+#              every rollout is one version behind, where verl's separate_async may lag by up to 4
+#              (max_off_policy_threshold); SGLang serves the training rollouts where verl uses vLLM;
+#              the data order and random streams.
+extends: agentic/miles
+description: OfficeQA on upstream miles, Qwen3.6-35B-A3B, hosted judge.
+task: officeqa
+stages: [prep, stage_model, stage_judge, calibrate, baseline_eval, train, export, eval, compare]
+
+model:
+  id: Qwen/Qwen3.6-35B-A3B
+  revision: 995ad96eacd98c81ed38be0c5b274b04031597b0
+  launcher: rft_miles/launchers/qwen3_6_35b_a3b.py   # the cookbook's: upstream's turns on MTP and EAGLE
+  model_name: Qwen3.6-35B-A3B
+  megatron_type: qwen3.6-35B-A3B
+  tool_parser: qwen3_coder
+  reasoning_parser: null              # the harness splits </think> itself, as verl's loop does
+  tito_model: qwen36                  # Qwen3.6's template (the native one, appendable) and token boundary
+  serve_args: [--language-model-only]   # evaluation (vLLM)
+  chat_template_kwargs: {}
+
+data:
+  max_prompt_tokens: 2048             # with the task's 96,256-token response budget: a 98,304 context
+
+agent: {}                             # the task's measured budgets (128 turns, 4,096 tokens per turn)
+
+scoring:
+  sandbox: strict                     # compute runs only inside bubblewrap
+  compute: {timeout_s: 15, mem_mb: 4096}
+  judge:
+    id: glm-5.3-flash-hosted-support-v1
+    provider: databricks              # the workspace AI gateway, with the job's own credentials
+    models: [system.ai.glm-5-3-flash]
+    tokenizer: {id: zai-org/GLM-5.3-Flash, revision: eb9eb208eb0d988989d07a6a12d0fdeb5f52574a}
+    max_model_len: 65536
+    max_tokens: 4096
+    timeout_s: 180
+    retries: 2
+    deadline_s: 600
+    reasoning_effort: low
+    concurrency: 16                   # one rollout process runs every episode: the run's limit
+
+eval:
+  samples: 4
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  concurrency: 8
+  gpu_memory_utilization: 0.8
+  tensor_parallel: 8
+  request_timeout_s: 600
+  probe_splits: [probe]               # training questions evaluated on purpose, reported apart
+  seed: null
+  baseline_run: null
+  accelerator: GPU_8xH100             # as the verl recipe evaluates
+  timeout_minutes: 240
+
+train:
+  num_rollout: 100              # one update each: 400 prompt groups, 1,600 trajectories
+  rollout_batch_size: 4
+  n_samples_per_prompt: 4
+  temperature: 1.0
+  lr: 1.0e-6
+  kl_loss_coef: 0.01            # low-variance KL to the base model, as the verl recipe
+  clip_ratio_low: 0.2
+  clip_ratio_high: 0.28
+  entropy_coeff: 0.0
+  save_interval: 25
+  save_hf: true                 # Hugging Face weights in every save, for export and evaluation
+  seed: 42
+  max_consecutive_exclusions: 32
+
+rollout:
+  request_timeout_s: 600
+
+checkpoint:
+  hash_files: false             # sizes are checked; hashing would read every save back from the volume
+
+compute:
+  nodes: 2                            # one trains, one serves (rft_miles/launchers/qwen3_6_35b_a3b.py)
+  accelerator: GPU_8xH100             # the hardware verl trains it on (B300s are for the larger models)
+  timeout_minutes: 240
+  train_timeout_minutes: 1080

@@ -1,28 +1,104 @@
-# REPO NAME 
+# AI Runtime RFT Cookbook
+
+Reinforcement fine-tuning (RFT) of tool-using agents on Databricks AI Runtime, with more than one
+RL framework. An agentic task (tools, prompt, decision rules, scorer) is written once; each
+framework runs it through a thin adapter on its own extension points, with no fork. A recipe pins
+one task to one framework, model and GPU layout. Every training and evaluation episode produces
+the same `EpisodeRecord`, so scoring, metrics and evidence are the same everywhere.
+
+Design: [docs/architecture.md](docs/architecture.md).
+
+## Support matrix
+
+| Task | Framework | Model | Recipe | Status |
+|---|---|---|---|---|
+| Math with a calculator (quickstart) | verl 0.10.0.dev (8718ca30) | Qwen3.5-2B, 1×8 H100 | [`math/verl/qwen3.5-2b_h100x8`](recipes/math/verl/qwen3.5-2b_h100x8/recipe.yaml) | untested: GPU acceptance run passed (train, resume, export, evaluate); qualification record pending |
+| OfficeQA | verl 0.10.0.dev (8718ca30) | Qwen3.5-35B-A3B, 2×8 H100 (8 train, 8 serve), hosted GLM-5.3-Flash judge | [`officeqa/verl/qwen3.5-35b-a3b_h100x16`](recipes/officeqa/verl/qwen3.5-35b-a3b_h100x16/recipe.yaml) | untested: parity passed (with the reference's tool-schema view); two training seeds, held-out supported pass@1 15.1% → 22.1% (+7.0 points, 95% interval [+1.2, +13.4]) and → 20.9% (+5.8 [0.0, +12.2]); qualification record pending |
+| Math with a calculator (technical smoke) | miles (upstream v0.1.3) | GLM-5.3-Flash 4-layer slice, 1×8 B300 | [`math/miles/glm-5.3-flash-4layer_b300x8`](recipes/math/miles/glm-5.3-flash-4layer_b300x8/recipe.yaml) | untested: GPU smoke passed (2 rollouts, 2 updates, checkpoint published); qualification record pending |
+| OfficeQA | verl 0.10.0.dev (8718ca30) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), hosted GLM-5.3-Flash judge | [`officeqa/verl/qwen3.6-35b-a3b_h100x16`](recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16/recipe.yaml) | untested: GPU runs in progress |
+| OfficeQA | miles (upstream v0.1.3) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), matched to the verl recipe and compared with its baseline | [`officeqa/miles/qwen3.6-35b-a3b_h100x16`](recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16/recipe.yaml) | untested: GPU runs in progress |
+| Math with a calculator (training trial) | miles (upstream v0.1.3) | GLM-5.3-Flash, 4×8 B300 | [`math/miles/glm-5.3-flash_b300x32`](recipes/math/miles/glm-5.3-flash_b300x32/recipe.yaml) | trained 3 updates and published a full checkpoint; job status failed at teardown (fix not yet GPU-verified) |
+| OfficeQA (long-context measurement) | miles (upstream v0.1.3) | GLM-5.3-Flash, 8×8 B300 | [`officeqa/miles/glm-5.3-flash_b300x64`](recipes/officeqa/miles/glm-5.3-flash_b300x64/recipe.yaml) | untested: GPU run in progress |
+| Agentic search | verl | Qwen3.5-35B-A3B | milestone 4 | not started |
+
+Recipe paths are under `recipes/`. *untested*: the code is complete and passes its CPU tests
+(including against the pinned verl), but no GPU run of this recipe has been qualified yet. A
+recipe becomes *smoke-tested* or *measured* only with a qualification record (see
+[Evidence and qualification](docs/architecture.md#evidence-and-qualification)).
+
+## Layout
 
 ```
-Placeholder
-
-Fill here a description at a functional level - what is this content doing
+src/rft_cookbook/    framework-neutral: agent (episode format, shared policy, Chat Completions
+                     harness), tools, scoring and judges, tasks, checkpoints, evidence, evaluation
+frameworks/verl/     the verl adapter (rft_verl), its job launcher and its image
+frameworks/miles/    the upstream-miles adapter (rft_miles), its job launcher, model launchers and image
+recipes/             the generic agentic recipe per framework, and concrete recipes
+tests/               CPU tests of the core; each adapter's tests are in frameworks/<name>/tests
 ```
 
-## Video Overview
+A verl user installs and imports nothing from other frameworks.
 
-Include a GIF overview of what your project does. Use a service like Quicktime, Zoom or Loom to create the video, then convert to a GIF.
+## Quickstart: math on verl
 
+1. Build the verl image, or use one built from `frameworks/verl/image` (see
+   [frameworks/verl/README.md](frameworks/verl/README.md)).
+2. Copy `site.example.env` to `site.env` (gitignored) and fill in your workspace profile,
+   volume root, image and Hugging Face token secret.
+3. Submit the recipe's jobs in order (see [Running a recipe](#running-a-recipe)), waiting for each to finish:
+   `prep`, `stage_model`, `baseline_eval`, `train`, `export`, `eval`, `compare`.
 
-## Installation
+## Running a recipe
 
-Include details on how to use and install this content. 
+Every recipe has one AI Runtime job per stage, checked in next to it:
+`recipes/<task>/<framework>/<recipe>/jobs/<stage>.yaml`. A job names its recipe and leaves
+placeholders for what belongs to your workspace and your run; fill them in at submission:
+
+```bash
+source site.env
+air run -f recipes/math/verl/qwen3.5-2b_h100x8/jobs/prep.yaml -p "$RFT_PROFILE" --override \
+  env_variables.RFT_RUN_ID=math-2b-01 env_variables.RFT_VOLUME_ROOT="$RFT_VOLUME_ROOT" \
+  environment.docker_image.url="$RFT_VERL_IMAGE" secrets.HF_TOKEN="$RFT_HF_TOKEN_SECRET"
+```
+
+`secrets.HF_TOKEN` is needed only by the stages that download from the Hugging Face Hub (their
+jobs list it). All stages of one run use the same run id; each finds its inputs on the volume
+under the run's directory. Inside the job the launcher resolves the recipe from the code snapshot,
+so a recipe change applies to the next job submitted.
+
+Recipe values can be overridden per run, as one shell-quoted list:
+`env_variables.RFT_SET="train.total_training_steps=3 train.seed=7"`. Use the same overrides for
+every stage of the run. `train` resumes from the run's newest published checkpoint: to continue
+a finished run, submit `train` again with a larger `train.total_training_steps` (miles:
+`train.num_rollout`).
+
+## Testing
+
+```bash
+pip install --no-deps -e . && pip install pytest pyyaml sympy pylatexenc
+pytest tests                          # core: no RL framework needed
+pytest frameworks/verl/tests          # needs the pinned verl importable (CPU is enough)
+pip install --no-deps -e frameworks/miles && pip install transformers openai
+pytest frameworks/miles/tests         # no miles needed
+```
+
+The verl tests run the cookbook agent loop inside verl's real `ToolAgentLoop` with a real Qwen3.5
+tokenizer and chat template (only generation is scripted), compose every resolved training
+argument against verl's own Hydra config, keep every checked-in job consistent with its recipe,
+and check that the native loop and the Chat Completions harness make the same decisions on the
+same episode. The miles tests check the arguments each recipe passes to miles' launcher, run the
+agent function against a scripted session endpoint, and cover the reward and post-save hooks and
+the checked-in jobs. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs all three on CPU.
 
 ## How to get help
 
-Databricks support doesn't cover this content. For questions or bugs, please open a GitHub issue and the team will help on a best effort basis.
-
+Databricks support doesn't cover this content. For questions or bugs, please open a GitHub issue
+and the team will help on a best effort basis.
 
 ## License
 
-&copy; 2025 Databricks, Inc. All rights reserved. The source in this notebook is provided subject to the Databricks License [https://databricks.com/db-license-source].  All included or referenced third party libraries are subject to the licenses set forth below.
-
-| library                                | description             | license    | source                                              |
-|----------------------------------------|-------------------------|------------|-----------------------------------------------------|
+&copy; 2025 Databricks, Inc. All rights reserved. The source in this repository is provided subject
+to the Databricks License [https://databricks.com/db-license-source]. Files derived from Apache-2.0
+projects keep the Apache License 2.0 ([LICENSE-APACHE](LICENSE-APACHE)); they are listed, with
+every other third-party source, in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). All included
+or referenced third-party libraries are subject to their own licenses.

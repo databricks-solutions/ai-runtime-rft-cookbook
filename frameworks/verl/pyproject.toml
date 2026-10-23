@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rft-verl"
+version = "0.1.0"
+description = "verl adapter for the RFT cookbook: agent loop, checkpoint publishing, data conversion, launcher"
+requires-python = ">=3.10"
+# verl, torch and vLLM come from the verl image only; never declared here.
+dependencies = ["rft-cookbook==0.1.0"]
+
+[tool.setuptools.packages.find]
+include = ["rft_verl*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.sh"]
