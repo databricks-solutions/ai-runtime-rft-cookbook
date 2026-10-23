@@ -1,22 +1,30 @@
 # Derived from verl-on-air (Apache License 2.0), usecases/officeqa/corpus.py at b088a42; tool
-# semantics and output text unchanged. See THIRD_PARTY_NOTICES.md.
+# semantics and output text unchanged, except that a regex grep now has a deadline. See
+# THIRD_PARTY_NOTICES.md.
 """Treasury Bulletin corpus and the four retrieval tools of the OfficeQA agent.
 
 The tool semantics and output text are those of the measured verl-on-air run, so episodes look
 the same. Documents are read from the corpus archive (`treasury_bulletins_clean.zip`, lossless
 tables rendered from the creators' parsed JSON); search ranks the chunks of the creators'
 transformed text (`chunks.jsonl`) with BM25 (`bm25s`) when it is importable, otherwise by keyword
-overlap. The corpus is one immutable object per process, loaded once. A policy-supplied grep
-regex runs in the calling thread; the tool deadline bounds it.
+overlap. The corpus is one immutable object per process, loaded once.
+
+A policy-supplied grep regex is matched by the `regex` module under its own deadline
+(`GREP_REGEX_TIMEOUT_S`), with the GIL released. The tool deadline cannot stop a match: `re`
+holds the GIL for the whole of one, so a pattern that backtracks catastrophically stalls every
+call on the node's tool service, and every episode then fails as infrastructure.
 """
 
 import json
 import re
 import threading
+import time
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import regex as regex_engine
 
 try:
     import bm25s
@@ -30,6 +38,7 @@ TOOL_MAX_CHARS = 32_000  # verl-on-air: 4,000
 READ_MAX_LINES = 400
 SNIPPET_CHARS = 500
 GREP_MAX_MATCHES = 40
+GREP_REGEX_TIMEOUT_S = 30.0  # one regex grep, all files; a full-corpus scan takes a few seconds
 
 
 @dataclass(frozen=True)
@@ -77,12 +86,15 @@ def grep_documents(corpus: Corpus, pattern: str, file_name: str = "", year: str 
     use_regex = bool(regex) and str(regex).lower() not in ("false", "0", "no", "")
     if use_regex:
         try:
-            compiled = re.compile(pat, re.IGNORECASE)
-        except re.error as error:
+            re.compile(pat, re.IGNORECASE)  # the error text the measured run showed the model
+            compiled = regex_engine.compile(pat, regex_engine.IGNORECASE | regex_engine.VERSION0)
+        except (re.error, regex_engine.error) as error:
             return f"Error: invalid regex {pat!r}: {error}"
+        deadline = time.monotonic() + GREP_REGEX_TIMEOUT_S
 
         def match(line: str) -> bool:
-            return compiled.search(line) is not None
+            left = max(deadline - time.monotonic(), 0.001)
+            return compiled.search(line, timeout=left, concurrent=True) is not None
 
     else:
         needle = pat.lower()
@@ -93,7 +105,10 @@ def grep_documents(corpus: Corpus, pattern: str, file_name: str = "", year: str 
     files = [_norm_name(file_name)] if file_name else _corpus_files(corpus, year)
     if not files:
         return f"No documents to search{f' for year {year}' if year else ''}."
-    hits, scanned = _grep_hits(corpus, files, match)
+    try:
+        hits, scanned = _grep_hits(corpus, files, match)
+    except TimeoutError:
+        return f"Error: regex {pattern!r} took longer than {GREP_REGEX_TIMEOUT_S:g} s; use a simpler pattern"
     if not hits:
         where = file_name or (f"year {year}" if year else "the corpus")
         return f"No matches for {pattern!r} in {where}."

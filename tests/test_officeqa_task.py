@@ -11,6 +11,7 @@ import csv
 import json
 import shutil
 import threading
+import time
 import zipfile
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from rft_cookbook.agent.harness import ByteCounter, ChatTurn, run_episode
 from rft_cookbook.scoring.base import score_episode
 from rft_cookbook.scoring.judge import JudgeReply
 from rft_cookbook.tasks import load_task, officeqa
-from rft_cookbook.tasks.officeqa import calibration, data
+from rft_cookbook.tasks.officeqa import calibration, corpus, data
 from rft_cookbook.tools import sandbox
 from rft_cookbook.tools.base import FunctionTool, ToolContext, ToolInfraError, ToolSet
 from rft_cookbook.tools.sandbox import PythonSandbox
@@ -151,6 +152,33 @@ def test_a_tool_infrastructure_failure_crosses_the_service(tmp_path):
     try:
         with pytest.raises(ToolInfraError, match="corpus volume is gone"):
             run_tool(RemoteToolSet(server.url, [schema]), schema["function"]["name"], {"query": "x"})
+    finally:
+        server.shutdown()
+
+
+def test_a_regex_that_backtracks_is_cut_off_and_the_service_keeps_answering(corpus_dir, monkeypatch):
+    with zipfile.ZipFile(corpus_dir / data.ARCHIVE, "a") as archive:
+        archive.writestr("treasury_bulletin_1943_06.txt", "a" * 60 + "b\n| July | " + " | ".join(["5,089"] * 16) + " | total\n")
+    monkeypatch.setattr(corpus, "GREP_REGEX_TIMEOUT_S", 1.0)
+    local = officeqa.local_tools(resources(corpus_dir))
+    server = ToolServer(local)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    remote, slow = RemoteToolSet(server.url, local.schemas()), []
+    try:
+        caller = threading.Thread(target=lambda: slow.append(
+            run_tool(remote, "grep_documents", {"pattern": "(a|aa)+$", "regex": True})))
+        caller.start()
+        time.sleep(0.2)
+        started = time.monotonic()   # re would hold the GIL for the whole match, and this call would wait for it
+        assert run_tool(remote, "grep_documents", {"pattern": "2,602"}).text.startswith("1 match(es)")
+        assert time.monotonic() - started < 0.5
+        caller.join(timeout=10)
+        assert slow[0].text == "Error: regex '(a|aa)+$' took longer than 1 s; use a simpler pattern"
+        # the pattern that stalled a training run's service (re: 38 s on one 74-character row)
+        stalled = r"^.*\|.*July.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|$"
+        assert run_tool(remote, "grep_documents", {"pattern": stalled, "year": "1943", "regex": True}).text.startswith("No matches")
+        assert run_tool(remote, "grep_documents", {"pattern": "(unclosed", "regex": True}).text.startswith(
+            "Error: invalid regex '(unclosed': missing ), unterminated subpattern")
     finally:
         server.shutdown()
 

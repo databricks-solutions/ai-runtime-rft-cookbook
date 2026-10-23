@@ -109,6 +109,10 @@ def warm(resources: dict[str, Any]) -> None:
     loaded = corpus.load_corpus(Path(resources["data_dir"]))
     if resources.get("require_bm25", True) and loaded.retriever is None:
         raise RuntimeError("bm25s is not importable: search would fall back to keyword overlap")
+    try:   # grep's regex deadline; without it one policy pattern can stall the service
+        corpus.regex_engine.compile("ok").search("ok", timeout=1.0, concurrent=True)
+    except TypeError as error:
+        raise RuntimeError(f"regex {corpus.regex_engine.__version__} cannot time out a match") from error
 
 
 def judge_policy(config: dict[str, Any]) -> JudgePolicy:
