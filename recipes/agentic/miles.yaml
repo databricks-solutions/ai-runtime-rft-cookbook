@@ -38,6 +38,8 @@ train:
   save_hf: false               # Hugging Face weights in every save (needed by export and eval)
   seed: 42
   max_consecutive_exclusions: 32   # excluded episodes in a row that stop the run
+  diagnostics: false           # log each update's weight drift by parameter family and the
+                               # training entropy (rft_miles.diagnostics)
 
 rollout:
   request_timeout_s: 600

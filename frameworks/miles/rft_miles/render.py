@@ -42,6 +42,7 @@ AGENT_MODE = "inline"   # on the rollout's event loop, not miles' default (subpr
 REWARD = "rft_miles.reward.reward"
 MATCHER = "rft_miles.session.matches"   # a replayed turn as the harness read it: one lineage per episode
 POST_SAVE = "rft_miles.checkpoint.publish"
+DIAGNOSTICS = "rft_miles.diagnostics.before_train_step"
 HF_DIR = "hf"   # a bundle's Hugging Face weights (train.save_hf), next to Megatron's
 LOCK = json.loads((Path(__file__).with_name("miles.lock.json")).read_text())   # the pinned upstream miles
 
@@ -134,6 +135,8 @@ def miles_args(recipe: dict[str, Any], paths: dict[str, Any], task=None) -> list
     for key, flag in ALGORITHM.items():
         if t.get(key) is not None:
             args += [flag, str(t[key])]
+    if t.get("diagnostics"):   # observed, not trained: the entropy is detached when its coefficient is 0
+        args += ["--custom-megatron-before-train-step-hook-path", DIAGNOSTICS, "--observe-training-entropy"]
     if task is not None:   # prompts the context cannot hold are filtered out, as verl filters them
         prompt = int(recipe["data"]["max_prompt_tokens"])
         args += ["--rollout-max-prompt-len", str(prompt),

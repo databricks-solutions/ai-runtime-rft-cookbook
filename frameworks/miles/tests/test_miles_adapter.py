@@ -62,6 +62,11 @@ def test_the_cookbook_hooks_ride_on_upstreams_launcher(tmp_path):
     assert flags["--sglang-tool-call-parser"] == "glm47" and flags["--rollout-batch-size"] == "4"
     assert flags["--sglang-sampling-defaults"] == "openai"
     assert shlex.split(shlex.join(extra)) == extra   # survives upstream's --extra-args string
+    assert "--custom-megatron-before-train-step-hook-path" not in flags and "--observe-training-entropy" not in flags
+    _, _, watched = resolve(tmp_path / "diag", ["train.diagnostics=true"])
+    watched_flags = _flags(watched["extra_args"])
+    assert watched_flags["--custom-megatron-before-train-step-hook-path"] == "rft_miles.diagnostics.before_train_step"
+    assert watched_flags["--observe-training-entropy"] is True
     # the math quickstart's prepared data serves this recipe too
     quickstart = load_recipe("math/verl/qwen3.5-2b_h100x8")
     assert plan["data_dir"].rsplit("/", 1)[1] == data_key(quickstart, plan["task_version"])
@@ -153,7 +158,9 @@ def test_the_cookbook_launcher_trains_no_mtp_and_matches_verls_algorithm(monkeyp
     flags = _flags(train.split())
     assert flags["--ref-load"] == "/ckpt/qwen3.6-35B-A3B_torch_dist" and flags["--hf-checkpoint"] == "/hf"
     assert (flags["--weight-decay"], flags["--adam-beta2"], flags["--eps-clip-c"]) == ("0.01", "0.999", "3.0")
-    assert flags["--calculate-per-token-loss"] is True and flags["--moe-aux-loss-coeff"] == "0.001"
+    assert flags["--calculate-per-token-loss"] is True
+    # verl trains with no load-balancing loss (moe_router_load_balancing_type='none')
+    assert (flags["--moe-aux-loss-coeff"], flags["--moe-router-load-balancing-type"]) == ("0", "none")
     assert (flags["--tensor-model-parallel-size"], flags["--context-parallel-size"],
             flags["--expert-model-parallel-size"]) == ("2", "4", "8")
     assert flags["--sglang-sampling-defaults"] == "openai" and flags["--rollout-top-k"] == "-1"

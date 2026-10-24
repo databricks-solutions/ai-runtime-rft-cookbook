@@ -9,7 +9,7 @@
 #              `eval.baseline_run`), and training: GRPO over 100 updates of 4 prompts x 4 samples,
 #              learning rate 1e-6 constant, low-variance KL 0.01 to the base model, clip 0.2/0.28 and
 #              dual-clip 3.0, token-mean loss, AdamW (weight decay 0.01, betas 0.9/0.999), gradient
-#              clip 1.0, MoE auxiliary loss 1e-3, TP2 x CP4 x EP8 training, no MTP layer, excluded
+#              clip 1.0, no MoE load-balancing loss, TP2 x CP4 x EP8 training, no MTP layer, excluded
 #              episodes drop their group (rft_miles.agent), an episode trains as one sequence with
 #              every generated token in context (rft_miles.session), old log-probs recomputed by the
 #              trainer without an importance-sampling correction, saves every 25 updates; and the
@@ -27,9 +27,13 @@
 # from 0.45 to 0.27): the policy itself degrades, whichever engine serves it. The export is not garbled
 # (no weight moved by 1e-2 relative), but the weights moved about 1.5x as far as verl's and the MoE
 # router 4.8x; the KL to the base model grew about 3x as fast as verl's from the first updates on, and
-# the sampled tokens' mean log-probability fell from -0.3 to -0.9 (verl: flat). One setting differs
-# from the verl run: this launcher trained with the MoE load-balancing loss (global, 1e-3), which the
-# verl run had off (`moe_router_load_balancing_type='none'`). Under investigation.
+# the sampled tokens' mean log-probability fell from -0.3 to -0.9 (verl: flat). The cause: that run's
+# launcher trained with the MoE load-balancing loss (global, 1e-3), which the verl run had off
+# (`moe_router_load_balancing_type='none'`); the launcher now has it off. A 30-update run with it off
+# (same code, seed and data order otherwise) kept the KL to the base model in verl's range (0.002 to
+# 0.0045 where the earlier run reached 0.012), and after 24 updates every parameter family, the router
+# included, had moved as far as verl's after 100 updates times sqrt(24/100); that run continues to 100
+# updates and evaluation.
 extends: agentic/miles
 description: OfficeQA on upstream miles, Qwen3.6-35B-A3B, hosted judge.
 task: officeqa
