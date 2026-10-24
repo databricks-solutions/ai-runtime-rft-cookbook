@@ -1,8 +1,8 @@
 # OfficeQA on upstream miles: Qwen3.6-35B-A3B answers Treasury Bulletin questions with retrieval and
 # compute tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
 #
-# Status: untested. The twin of recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, matched setting by
-# setting so that the two frameworks' runs compare:
+# Status: done (no qualification record yet). The twin of recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16,
+# matched setting by setting so that the two frameworks' runs compare:
 #   the same   model and revision, data, agent budgets (128 turns, 4,096 tokens a turn, a 98,304-token
 #              context), judge and sandbox, evaluation (vLLM from the verl image, 43 held-out
 #              questions x 4 samples, seed 42; a run compared with the verl run's baseline uses
@@ -19,21 +19,21 @@
 #              every rollout is one version behind, where verl's separate_async may lag by up to 4
 #              (max_off_policy_threshold); SGLang serves the training rollouts where verl uses vLLM;
 #              the data order and random streams.
-# GPU run 2026-10-24 (100 updates, resumed once from iter_0000024): every stage passed, but the
-# trained model regressed: held-out supported pass@1 19.8% -> 11.0% (-8.7 points, 95% interval
-# [-16.9, -1.2]) against the verl recipe's baseline, where the verl run went to 22.7%. 50 of 236
-# evaluation episodes break off in incoherent text 20K to 90K tokens in, and so do the training
-# rollouts from about update 72 on (22 of the last 148 end without an answer; the training score falls
-# from 0.45 to 0.27): the policy itself degrades, whichever engine serves it. The export is not garbled
-# (no weight moved by 1e-2 relative), but the weights moved about 1.5x as far as verl's and the MoE
-# router 4.8x; the KL to the base model grew about 3x as fast as verl's from the first updates on, and
-# the sampled tokens' mean log-probability fell from -0.3 to -0.9 (verl: flat). The cause: that run's
-# launcher trained with the MoE load-balancing loss (global, 1e-3), which the verl run had off
-# (`moe_router_load_balancing_type='none'`); the launcher now has it off. A 30-update run with it off
-# (same code, seed and data order otherwise) kept the KL to the base model in verl's range (0.002 to
-# 0.0045 where the earlier run reached 0.012), and after 24 updates every parameter family, the router
-# included, had moved as far as verl's after 100 updates times sqrt(24/100); that run continues to 100
-# updates and evaluation.
+# GPU runs, 100 updates each, held-out supported pass@1 against the verl run's baseline (43 questions
+# x 4 samples, seed 42), where the verl run went 19.8% -> 22.7% (+2.9 points, 95% interval [-2.9, +9.3]):
+#   2026-10-24, the code of 92305c1 with the MoE load-balancing loss off in `--extra-args` (the
+#     launcher's setting since): 19.8% -> 23.8% (+4.1 [-2.9, +11.6]); probes 43.8% -> 43.8% (verl:
+#     53.1%). Stopped after update 29 and resumed from the volume. The KL to the base model rose to
+#     0.013 by update 99, about as verl's (0.010), where the run below reached 0.032; the entropy stayed
+#     between 0.31 and 0.54 without a trend; fewer episodes end at the token limit (48 -> 13 of 236;
+#     verl: 48 -> 21).
+#   2026-10-24, with the MoE load-balancing loss (global, 1e-3) that the verl run has off
+#     (`moe_router_load_balancing_type='none'`): 19.8% -> 11.0% (-8.7 [-16.9, -1.2]). The policy
+#     degraded: from about update 72 the training rollouts, and 50 of 236 evaluation episodes, broke
+#     off in incoherent text. The weights moved about 1.5x as far as verl's and the MoE router 4.8x, and
+#     the KL to the base model grew about 3x as fast from the first updates on. With the loss off, after
+#     24 updates every parameter family had moved as far as verl's after 100 times sqrt(24/100).
+# The two frameworks' trained models score alike (22.7%, 23.8%); neither gain is significant.
 extends: agentic/miles
 description: OfficeQA on upstream miles, Qwen3.6-35B-A3B, hosted judge.
 task: officeqa
