@@ -48,6 +48,7 @@ not used.
 - **Driver differences.** verl's parsers drop calls they cannot parse instead of reporting them;
   the Chat Completions harness sees whatever the serving parser returns. The decisions after
   parsing are the same ([`tests/test_drivers_agree.py`](tests/test_drivers_agree.py)).
-- **Every recipe is untested** until it has a qualification record. The math recipe's GPU
-  acceptance run (two updates, publish, restart, resume, a further update, export, evaluate the
-  export) passed on 2026-10-21; the OfficeQA runs are listed in the root README.
+- **No recipe has a qualification record yet.** The math recipe's GPU acceptance run (two
+  updates, publish, restart, resume, a further update, export, evaluate the export) passed on
+  2026-10-21 and again on the committed code on 2026-10-23; the root README lists every recipe's
+  status and the OfficeQA runs.

@@ -1,7 +1,7 @@
 # OfficeQA on verl: Qwen3.5-35B-A3B answers Treasury Bulletin questions with retrieval and compute
 # tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
 #
-# Status: untested (no qualification record yet). The base model's evaluation is compared with the
+# Status: done (no qualification record yet). The base model's evaluation is compared with the
 # measured verl-on-air baseline (reference_baseline.json), paired by question, before training. The
 # reference model saw verl 0.10's reduced tool schemas, so parity runs as its own run with that view
 # (RFT_SET="eval.schema_view=verl-0.10-properties": baseline_eval, then parity; it agreed on
@@ -10,7 +10,8 @@
 # Training follows the measured run: 100 updates of 4 prompts x 4 samples on 8 trainer + 8 rollout
 # H100s (two nodes). GPU runs 2026-10-22, two training seeds: held-out supported pass@1 15.1% ->
 # 22.1% (seed 42, +7.0 points, 95% interval [+1.2, +13.4]) and -> 20.9% (seed 7, +5.8 [0.0, +12.2]);
-# see docs/architecture.md, milestone 2.
+# see docs/architecture.md, milestone 2. These runs predate the first commit; the Qwen3.6 recipe, the
+# same recipe with the newer model, has since run on the committed code.
 extends: agentic/verl
 description: OfficeQA on verl, Qwen3.5-35B-A3B, hosted judge.
 task: officeqa

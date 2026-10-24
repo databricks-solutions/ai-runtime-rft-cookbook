@@ -1,11 +1,20 @@
 # OfficeQA on verl: Qwen3.6-35B-A3B answers Treasury Bulletin questions with retrieval and compute
 # tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
 #
-# Status: untested. The Qwen3.5 recipe (qwen3.5-35b-a3b_h100x16) with the newer model: the same
-# architecture, data, budgets, judge, evaluation and training settings. Its miles twin
-# (recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16) trains the same model with matched settings and
-# is compared with this run's baseline evaluation. There is no earlier measurement of this model
-# to check the baseline against, so there is no parity stage.
+# Status: done (no qualification record yet); the reference OfficeQA recipe. The Qwen3.5 recipe
+# (qwen3.5-35b-a3b_h100x16) with the newer model: the same architecture, data, budgets, judge,
+# evaluation and training settings. Its miles twin (recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16)
+# trains the same model with matched settings and is compared with this run's baseline evaluation.
+# There is no earlier measurement of this model to check the baseline against, so there is no
+# parity stage.
+# GPU runs, 100 updates each, held-out supported pass@1 (43 questions x 4 samples, seed 42):
+#   2026-10-24, committed code: 19.8% -> 22.7% (+2.9 points, 95% interval [-2.9, +9.3]); probes
+#     43.8% -> 53.1%. Resumed once from global_step_25 (the hosted judge was down for 23 minutes).
+#   2026-10-23, the code before the first commit: 22.1% -> 22.1% (+0.0 [-5.8, +5.2]); probes
+#     53.1% -> 46.9%.
+# The trained models score alike (22.1%, 22.7%) and the two baselines differ by noise, so 100
+# updates give no measurable held-out gain; both runs end fewer episodes at the token limit
+# (35 -> 18 and 48 -> 21 of 236).
 extends: agentic/verl
 description: OfficeQA on verl, Qwen3.6-35B-A3B, hosted judge.
 task: officeqa

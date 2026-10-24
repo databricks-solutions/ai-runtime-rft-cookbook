@@ -12,18 +12,19 @@ Design: [docs/architecture.md](docs/architecture.md).
 
 | Task | Framework | Model | Recipe | Status |
 |---|---|---|---|---|
-| Math with a calculator (quickstart) | verl 0.10.0.dev (8718ca30) | Qwen3.5-2B, 1×8 H100 | [`math/verl/qwen3.5-2b_h100x8`](recipes/math/verl/qwen3.5-2b_h100x8/recipe.yaml) | untested: GPU acceptance run passed (train, resume, export, evaluate); qualification record pending |
-| OfficeQA | verl 0.10.0.dev (8718ca30) | Qwen3.5-35B-A3B, 2×8 H100 (8 train, 8 serve), hosted GLM-5.3-Flash judge | [`officeqa/verl/qwen3.5-35b-a3b_h100x16`](recipes/officeqa/verl/qwen3.5-35b-a3b_h100x16/recipe.yaml) | untested: parity passed (with the reference's tool-schema view); two training seeds, held-out supported pass@1 15.1% → 22.1% (+7.0 points, 95% interval [+1.2, +13.4]) and → 20.9% (+5.8 [0.0, +12.2]); qualification record pending |
-| Math with a calculator (technical smoke) | miles (upstream v0.1.3) | GLM-5.3-Flash 4-layer slice, 1×8 B300 | [`math/miles/glm-5.3-flash-4layer_b300x8`](recipes/math/miles/glm-5.3-flash-4layer_b300x8/recipe.yaml) | untested: GPU smoke passed (2 rollouts, 2 updates, checkpoint published); qualification record pending |
-| OfficeQA | verl 0.10.0.dev (8718ca30) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), hosted GLM-5.3-Flash judge | [`officeqa/verl/qwen3.6-35b-a3b_h100x16`](recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16/recipe.yaml) | untested: GPU runs in progress |
-| OfficeQA | miles (upstream v0.1.3) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), matched to the verl recipe and compared with its baseline | [`officeqa/miles/qwen3.6-35b-a3b_h100x16`](recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16/recipe.yaml) | untested: GPU runs in progress |
-| Math with a calculator (training trial) | miles (upstream v0.1.3) | GLM-5.3-Flash, 4×8 B300 | [`math/miles/glm-5.3-flash_b300x32`](recipes/math/miles/glm-5.3-flash_b300x32/recipe.yaml) | trained 3 updates and published a full checkpoint; job status failed at teardown (fix not yet GPU-verified) |
-| OfficeQA (long-context measurement) | miles (upstream v0.1.3) | GLM-5.3-Flash, 8×8 B300 | [`officeqa/miles/glm-5.3-flash_b300x64`](recipes/officeqa/miles/glm-5.3-flash_b300x64/recipe.yaml) | untested: GPU run in progress |
+| Math with a calculator (quickstart) | verl 0.10.0.dev (8718ca30) | Qwen3.5-2B, 1×8 H100 | [`math/verl/qwen3.5-2b_h100x8`](recipes/math/verl/qwen3.5-2b_h100x8/recipe.yaml) | done: every stage passed (train, resume, export, evaluate), again on the committed code on 2026-10-23 |
+| OfficeQA | verl 0.10.0.dev (8718ca30) | Qwen3.5-35B-A3B, 2×8 H100 (8 train, 8 serve), hosted GLM-5.3-Flash judge | [`officeqa/verl/qwen3.5-35b-a3b_h100x16`](recipes/officeqa/verl/qwen3.5-35b-a3b_h100x16/recipe.yaml) | done: parity passed (with the reference's tool-schema view); two training seeds, held-out supported pass@1 15.1% → 22.1% (+7.0 points, 95% interval [+1.2, +13.4]) and → 20.9% (+5.8 [0.0, +12.2]) |
+| Math with a calculator (technical smoke) | miles (upstream v0.1.3) | GLM-5.3-Flash 4-layer slice, 1×8 B300 | [`math/miles/glm-5.3-flash-4layer_b300x8`](recipes/math/miles/glm-5.3-flash-4layer_b300x8/recipe.yaml) | done: GPU smoke passed (2 rollouts, 2 updates, checkpoint published) |
+| OfficeQA | verl 0.10.0.dev (8718ca30) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), hosted GLM-5.3-Flash judge | [`officeqa/verl/qwen3.6-35b-a3b_h100x16`](recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16/recipe.yaml) | done (the reference OfficeQA recipe): 100 updates, held-out supported pass@1 19.8% → 22.7% (+2.9 points, 95% interval [−2.9, +9.3]); an earlier run, 22.1% → 22.1%: no measurable gain |
+| OfficeQA | miles (upstream v0.1.3) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), matched to the verl recipe and compared with its baseline | [`officeqa/miles/qwen3.6-35b-a3b_h100x16`](recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16/recipe.yaml) | untested: every stage ran, but the trained model regressed (held-out supported pass@1 19.8% → 11.0% against the verl recipe's baseline); under investigation |
+| Math with a calculator (training trial) | miles (upstream v0.1.3) | GLM-5.3-Flash, 4×8 B300 | [`math/miles/glm-5.3-flash_b300x32`](recipes/math/miles/glm-5.3-flash_b300x32/recipe.yaml) | done: trained 3 updates and published a full resumable checkpoint (4.8 TB) |
+| OfficeQA (long-context measurement) | miles (upstream v0.1.3) | GLM-5.3-Flash, 8×8 B300 | [`officeqa/miles/glm-5.3-flash_b300x64`](recipes/officeqa/miles/glm-5.3-flash_b300x64/recipe.yaml) | done, accepted without a completed run here: the full model trains at 32 GPUs (row above) and has trained on OfficeQA before; the two 64-GPU attempts here stopped in the first update (see the recipe header) |
 | Agentic search | verl | Qwen3.5-35B-A3B | milestone 4 | not started |
 
-Recipe paths are under `recipes/`. *untested*: the code is complete and passes its CPU tests
-(including against the pinned verl), but no GPU run of this recipe has been qualified yet. A
-recipe becomes *smoke-tested* or *measured* only with a qualification record (see
+Recipe paths are under `recipes/`. *done*: the recipe's GPU runs passed, as its header records (the
+GLM-5.3-Flash OfficeQA measurement is the exception the row states). *untested*: the code is complete
+and passes its CPU tests (including against the pinned verl), but its GPU runs are not complete. No
+recipe has a qualification record yet; with one it becomes *smoke-tested* or *measured* (see
 [Evidence and qualification](docs/architecture.md#evidence-and-qualification)).
 
 ## Layout

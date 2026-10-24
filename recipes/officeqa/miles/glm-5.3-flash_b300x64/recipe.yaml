@@ -12,7 +12,15 @@
 # The policy and the judge are the same model family (the hosted GLM-5.3-Flash judges the evidence).
 # Training keeps upstream's algorithm for this model (no KL term: a reference copy of a 300B model
 # would not fit beside it); the recipe sets only the task's sampling and batch.
-# Status: untested.
+# Status: done, accepted without a completed run in this cookbook: the full model trains in miles at
+# 32 GPUs (recipes/math/miles/glm-5.3-flash_b300x32), and it has trained on OfficeQA before. The
+# cookbook's two attempts on 64 B300 (2026-10-23) stopped in the first update, in the trainer's first
+# forward pass after log-probs: CUDA reported an illegal memory access at the synchronization inside
+# fla's causal_conv1d autotuning. The faulting kernel was not identified (the error is asynchronous;
+# a rerun with CUDA_LAUNCH_BLOCKING=1 in the trainer found no B300 capacity). The 4-layer slice
+# trained on 24,576-token sequences on one node with CUDA_LAUNCH_BLOCKING=1, and the full model's math
+# episodes are short, so what is left is the full model with long episodes, the 64-GPU layout (EP16),
+# or a race that synchronous launches hide.
 extends: agentic/miles
 description: OfficeQA on upstream miles, GLM-5.3-Flash, 8 nodes (long-context measurement).
 task: officeqa

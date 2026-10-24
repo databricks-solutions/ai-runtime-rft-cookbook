@@ -19,6 +19,17 @@
 #              every rollout is one version behind, where verl's separate_async may lag by up to 4
 #              (max_off_policy_threshold); SGLang serves the training rollouts where verl uses vLLM;
 #              the data order and random streams.
+# GPU run 2026-10-24 (100 updates, resumed once from iter_0000024): every stage passed, but the
+# trained model regressed: held-out supported pass@1 19.8% -> 11.0% (-8.7 points, 95% interval
+# [-16.9, -1.2]) against the verl recipe's baseline, where the verl run went to 22.7%. 50 of 236
+# evaluation episodes break off in incoherent text 20K to 90K tokens in, and so do the training
+# rollouts from about update 72 on (22 of the last 148 end without an answer; the training score falls
+# from 0.45 to 0.27): the policy itself degrades, whichever engine serves it. The export is not garbled
+# (no weight moved by 1e-2 relative), but the weights moved about 1.5x as far as verl's and the MoE
+# router 4.8x; the KL to the base model grew about 3x as fast as verl's from the first updates on, and
+# the sampled tokens' mean log-probability fell from -0.3 to -0.9 (verl: flat). One setting differs
+# from the verl run: this launcher trained with the MoE load-balancing loss (global, 1e-3), which the
+# verl run had off (`moe_router_load_balancing_type='none'`). Under investigation.
 extends: agentic/miles
 description: OfficeQA on upstream miles, Qwen3.6-35B-A3B, hosted judge.
 task: officeqa
