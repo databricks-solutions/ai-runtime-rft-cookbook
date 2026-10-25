@@ -17,6 +17,8 @@ from rft_miles import diagnostics  # noqa: E402
     ("module.decoder.final_layernorm.weight", "norms"),
     ("module.module.embedding.word_embeddings.weight", "embedding"),
     ("module.module.output_layer.weight", "output"),
+    ("module.module.model_companion.weight_version", None),                    # miles' update counter
+    ("module.module.model_companion.sample_consumptions", None),
 ])
 def test_a_parameter_belongs_to_its_family(name, family):
     assert diagnostics.family(name) == family

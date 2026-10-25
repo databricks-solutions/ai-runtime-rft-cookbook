@@ -43,7 +43,11 @@ _state: dict | None = None
 
 
 def family(name: str) -> str | None:
-    """The parameter's family, or None for a routed expert that is not sampled."""
+    """The parameter's family, or None for a routed expert that is not sampled or one of miles'
+    bookkeeping tensors (`model_companion`: the weight version and sample consumptions, a counter
+    that would read as drift)."""
+    if ".model_companion." in f".{name}":
+        return None
     for label, pattern in FAMILIES:
         if pattern.search(name):
             if label == "routed_experts" and not SAMPLED_EXPERT.search(name):
