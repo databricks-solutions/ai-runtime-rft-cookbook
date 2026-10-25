@@ -56,6 +56,8 @@ def test_a_complete_run_of_the_recipe_as_checked_in_is_measured(tmp_path):
 
 
 def test_a_reduced_run_is_smoke_tested_and_a_seed_is_not_a_reduction(tmp_path):
+    logged = {**RECIPE, "train": {**RECIPE["train"], "seed": 7, "diagnostics": True}}
+    assert qualification.deviations(CHECKED_IN, logged) == []   # a replicate, with drift logging on
     reduced = {**RECIPE, "train": {**RECIPE["train"], "total_training_steps": 2, "seed": 7}}
     record = run(tmp_path, recipe=reduced)
     assert record["status"] == "smoke-tested" and record["recipe"]["deviations"] == ["train.total_training_steps"]

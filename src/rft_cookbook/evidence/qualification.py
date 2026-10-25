@@ -17,7 +17,7 @@ applied, the image (`RFT_IMAGE`), the model and judge tokenizer revisions, the d
 - parity, when the run checked it.
 
 The status follows: `measured` when every check passed and the run is the recipe as checked in (a
-training or evaluation seed, the baseline run and the stages may differ), `smoke-tested` when
+training or evaluation seed, the baseline run, the stages and diagnostics may differ), `smoke-tested` when
 every check passed on a run that changed anything else (fewer updates, say), `failed` otherwise.
 """
 from __future__ import annotations
@@ -30,7 +30,8 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA = "rft-cookbook/qualification/v1"
-NEUTRAL = ("train.seed", "eval.seed", "eval.baseline_run", "stages")   # a replicate stays the recipe
+# a replicate stays the recipe, and so does a run that only logs more (train.diagnostics: miles' drift logging)
+NEUTRAL = ("train.seed", "eval.seed", "eval.baseline_run", "stages", "train.diagnostics")
 CODE_DIRS = ("src", "frameworks", "recipes")
 
 
