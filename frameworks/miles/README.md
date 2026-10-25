@@ -12,7 +12,7 @@
 | data | prompt rows (`--prompt-data`) carrying the cookbook row and the run's agent settings in `metadata` | `launch` |
 | launch | the model's launcher (`model.launcher`): upstream's (e.g. `scripts/run_glm5_3_flash.py`) or the cookbook's own (`rft_miles/launchers/`), with the cookbook's flags in its `--extra-args` | `render`, `launch`, `launch/node.sh` |
 | tools | the task's node-local tool service on every node for the length of the train stage, as on verl | `launch` |
-| stop | after `train.max_consecutive_exclusions` excluded episodes without a decided one between them the agent function asks the launcher to stop the run; a judge outage first holds the rollouts for up to `train.judge_outage_wait_s` | `agent.run`, `launch` |
+| stop | after `train.max_consecutive_exclusions` excluded episodes without a decided one between them the agent function asks the launcher to stop the run; a judge outage first holds the rollouts for up to `train.judge_outage_wait_s` (a held episode keeps its session: session server v2 calls the agent function without a timeout and deletes a session only after collecting its samples, as of the pinned commit) | `agent.run`, `launch` |
 
 ## Pinned stack
 

@@ -17,7 +17,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pytest pyyaml==6.0.3 sympy==1.14.0 pylatexenc==2.10 setuptools
+      - run: pip install pytest pyyaml==6.0.3 sympy==1.14.0 pylatexenc==2.10 setuptools openai
       - run: pip install --no-deps --no-build-isolation -e .
       - run: pytest tests
 
@@ -56,4 +56,26 @@ jobs:
           python-version: "3.12"
       - run: pip install pytest pyyaml==6.0.3 sympy==1.14.0 pylatexenc==2.10 setuptools transformers openai
       - run: pip install --no-deps --no-build-isolation -e . -e frameworks/miles
+      - run: pytest frameworks/miles/tests
+
+  miles-api:
+    # The adapter against the pinned miles (tier 3): its hooks with miles' own loader and against the
+    # calls miles makes, miles' session post-processing on its samples, every recipe flag against
+    # miles' parser, and the drift logging (torch).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.13.*"
+      - run: pip install pytest pyyaml==6.0.3 sympy==1.14.0 pylatexenc==2.10 setuptools transformers openai numpy aiohttp
+      - run: pip install --no-deps --no-build-isolation -e . -e frameworks/miles
+      - name: The pinned miles source, checked against its sha256
+        run: |
+          read -r url sha < <(python -c "import json; l = json.load(open('frameworks/miles/rft_miles/miles.lock.json')); print(l['tarball'], l['tarball_sha256'])")
+          curl -sSL -o /tmp/miles.tar.gz "$url"
+          echo "$sha  /tmp/miles.tar.gz" | sha256sum -c
+          mkdir -p /tmp/miles && tar -xzf /tmp/miles.tar.gz -C /tmp/miles --strip-components=1
+          echo "PYTHONPATH=/tmp/miles" >> "$GITHUB_ENV"
       - run: pytest frameworks/miles/tests

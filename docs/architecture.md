@@ -428,7 +428,7 @@ and inside a Ray worker.
 | 2. Adapter contract | each adapter turns recorded fixtures into valid `EpisodeRecord`s; one recorded episode scores identically through every adapter; attestations on truncated, multi-leaf and retried sessions; invalid rewards never reach the update; lost agent metadata becomes `infra_failure` | GitHub Actions, CPU, fake framework objects | every PR |
 | 3. Framework API | adapters against the real pinned framework: hook signatures, base classes, configuration composition | maintained runner with the framework image | changes to an adapter, core, task or pin |
 | 4. Jobs and public safety | every recipe resolves; its checked-in jobs match it; secret and workspace-detail scan of sources, jobs, JSON, SVG and evidence | GitHub Actions, CPU | every PR |
-| 5. GPU smoke | per framework: small model, two updates, episode records valid, retention attested, checkpoint published, resumed and exported, export evaluated | AI Runtime, maintainer-triggered from a reviewed commit | pin, image, adapter, core or task changes; before releases |
+| 5. GPU smoke | per framework: small model, two updates, episode records valid, retention attested, checkpoint published, resumed and exported, export evaluated (`python -m rft_cookbook.air.chain <recipe> <run id> --smoke`) | AI Runtime, maintainer-triggered from a reviewed commit | pin, image, adapter, core or task changes; before releases |
 | 6. Full recipe | the headline result with a qualification record | AI Runtime | when a result must be established |
 
 GPU tiers never run on pull requests from forks. Their sanitized receipts are published with the

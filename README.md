@@ -82,6 +82,17 @@ every stage of the run. `train` resumes from the run's newest published checkpoi
 a finished run, submit `train` again with a larger `train.total_training_steps` (miles:
 `train.num_rollout`).
 
+To run every stage of a recipe in order from your workstation, filled in from `site.env`, with the
+commit and image for the record, and the baseline evaluation beside training:
+
+```bash
+python -m rft_cookbook.air.chain officeqa/verl/qwen3.6-35b-a3b_h100x16 oqa-q36-01 --set "train.seed=7"
+python -m rft_cookbook.air.chain math/verl/qwen3.5-2b_h100x8 math-smoke-01 --smoke   # GPU smoke (tier 5)
+```
+
+It keeps the jobs it submitted in `~/.rft-runs/<run id>.json`; run the same command again to resume
+a chain: a job that succeeded is reused and one that still runs is waited for.
+
 ## Testing
 
 ```bash
@@ -89,7 +100,8 @@ pip install --no-deps -e . && pip install pytest pyyaml sympy pylatexenc
 pytest tests                          # core: no RL framework needed
 pytest frameworks/verl/tests          # needs the pinned verl importable (CPU is enough)
 pip install --no-deps -e frameworks/miles && pip install transformers openai
-pytest frameworks/miles/tests         # no miles needed
+pytest frameworks/miles/tests         # no miles needed; with torch and the pinned miles on
+                                      # PYTHONPATH, also against miles itself
 ```
 
 The verl tests run the cookbook agent loop inside verl's real `ToolAgentLoop` with a real Qwen3.5
@@ -97,8 +109,12 @@ tokenizer and chat template (only generation is scripted), compose every resolve
 argument against verl's own Hydra config, keep every checked-in job consistent with its recipe,
 and check that the native loop and the Chat Completions harness make the same decisions on the
 same episode. The miles tests check the arguments each recipe passes to miles' launcher, run the
-agent function against a scripted session endpoint, and cover the reward and post-save hooks and
-the checked-in jobs. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs all three on CPU.
+agent function against a scripted session endpoint, and cover the reward, post-save and attestation
+hooks and the checked-in jobs; against the pinned miles (`test_miles_api.py`) they load every hook
+with miles' own loader, check it against the call miles makes, run miles' session post-processing
+and check every flag a recipe passes against miles' parser. The core tests include the judge client
+against a fake OpenAI-compatible server. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs
+them all on CPU, the miles tests twice: without miles and against the pinned miles.
 
 ## How to get help
 
