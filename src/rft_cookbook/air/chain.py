@@ -95,11 +95,13 @@ class Chain:
     def submit(self, stage: str, overrides: list[str]) -> str:
         path = self.jobs / f"{stage}.yaml"
         text = path.read_text()
-        image = self.site["RFT_MILES_IMAGE"] if "<miles-image>" in text else self.site["RFT_VERL_IMAGE"]
+        key = "RFT_MILES_IMAGE" if "<miles-image>" in text else "RFT_VERL_IMAGE"
+        image = self.site[key]
+        # a workspace that runs an image by its tag names the digest the tag resolves to, for the record
         sets = [f"env_variables.RFT_RUN_ID={self.run_id}",
                 f"env_variables.RFT_VOLUME_ROOT={self.site['RFT_VOLUME_ROOT']}",
                 f"environment.docker_image.url={image}", f"env_variables.RFT_SET={shlex.join(overrides)}",
-                f"env_variables.RFT_IMAGE={image}"]
+                f"env_variables.RFT_IMAGE={self.site.get(key + '_DIGEST') or image}"]
         if self.commit:
             sets.append(f"env_variables.RFT_CODE_COMMIT={self.commit}")
         if re.search(r"^secrets:", text, re.M):

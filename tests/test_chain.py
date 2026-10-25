@@ -85,6 +85,17 @@ def test_a_restart_reuses_what_succeeded_waits_for_what_runs_and_redoes_what_fai
     assert submitted.count("stage_judge") == 1                          # failed before: submitted again
 
 
+def test_an_image_run_by_its_tag_is_recorded_by_its_digest(tmp_path):
+    air = FakeAir()
+    site = {**SITE, "RFT_VERL_IMAGE": "verl:v1", "RFT_VERL_IMAGE_DIGEST": "verl@sha256:aa"}
+    chain.Chain(VERL, "r-01", site, [], root=recipes_root().parent, state=tmp_path / "r-01.json", run=air,
+                poll_s=0, log=lambda line: None).go()
+    by_stage = {s["stage"]: s for s in air.submitted}
+    assert by_stage["prep"]["environment.docker_image.url"] == "verl:v1"
+    assert by_stage["prep"]["env_variables.RFT_IMAGE"] == "verl@sha256:aa"
+    assert by_stage["train"]["env_variables.RFT_IMAGE"] == "verl@sha256:aa"
+
+
 def test_a_failed_stage_stops_the_chain(tmp_path):
     air = FakeAir(fail="train")
     with pytest.raises(RuntimeError, match="train .* ended FAILED"):
