@@ -1,7 +1,9 @@
 # OfficeQA on verl: Qwen3.5-35B-A3B answers Treasury Bulletin questions with retrieval and compute
 # tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
 #
-# Status: done (no qualification record yet). The base model's evaluation is compared with the
+# Status: superseded by recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, the same recipe with the newer
+# model and the reference OfficeQA recipe now; kept with its results, not rerun on the final code (no
+# qualification record). The base model's evaluation is compared with the
 # measured verl-on-air baseline (reference_baseline.json), paired by question, before training. The
 # reference model saw verl 0.10's reduced tool schemas, so parity runs as its own run with that view
 # (RFT_SET="eval.schema_view=verl-0.10-properties": baseline_eval, then parity; it agreed on

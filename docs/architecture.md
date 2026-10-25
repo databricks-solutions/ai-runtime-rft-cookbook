@@ -362,13 +362,13 @@ ai-runtime-rft-cookbook/
 └── tests/
 ```
 
-A recipe extends the generic agentic recipe (abridged from `recipes/officeqa/verl/qwen3.5-35b-a3b_h100x16`):
+A recipe extends the generic agentic recipe (abridged from `recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16`):
 
 ```yaml
 extends: agentic/verl
 task: officeqa
-stages: [prep, stage_model, stage_judge, calibrate, baseline_eval, parity, train, export, eval, compare]
-model: {id: Qwen/Qwen3.5-35B-A3B, revision: <commit>, tool_parser: qwen3_coder}
+stages: [prep, stage_model, stage_judge, calibrate, baseline_eval, train, export, eval, compare]
+model: {id: Qwen/Qwen3.6-35B-A3B, revision: <commit>, tool_parser: qwen3_coder}
 scoring:
   sandbox: strict
   judge: {id: glm-5.3-flash-hosted-support-v1, provider: databricks, models: [system.ai.glm-5-3-flash]}
