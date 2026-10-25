@@ -194,7 +194,7 @@ def _heartbeat(rendezvous: Path, stop: threading.Event, period_s: float) -> None
 
 
 def _put(path: Path, value: dict) -> None:
-    tmp = path.with_name(f".{path.name}.{os.getpid()}")
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.{threading.get_ident()}")   # a heartbeat may write at once
     tmp.write_text(json.dumps(value))
     os.replace(tmp, path)
 
