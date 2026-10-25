@@ -28,16 +28,21 @@ class Toy(torch.nn.Module):
         self.router = torch.nn.Linear(4, 4, bias=False)            # "router.weight": not ".mlp.router."
         self.register_parameter("w", torch.nn.Parameter(torch.ones(8)))
 
+        self.register_parameter("flag", torch.nn.Parameter(torch.zeros(2)))
+
     def named_parameters(self, *args, **kwargs):
         yield "decoder.layers.0.mlp.router.weight", self.router.weight
         yield "decoder.layers.0.self_attention.linear_proj.weight", self.w
+        yield "decoder.layout_flag", self.flag
 
 
 def test_drift_last_update_and_cosine(monkeypatch, capsys):
     monkeypatch.setattr(diagnostics, "_state", None)
     model = [Toy()]
     diagnostics.before_train_step(None, 0, 0, model, None, None)     # keeps the start
-    assert "kept the starting weights" in capsys.readouterr().out
+    started = capsys.readouterr().out
+    assert "kept the starting weights" in started
+    assert "[rft-diag] other on this rank: decoder.layout_flag (2,) norm 0" in started   # named, to be looked at
     with torch.no_grad():
         model[0].w += 0.1                                             # two updates in one direction
     diagnostics.before_train_step(None, 1, 0, model, None, None)

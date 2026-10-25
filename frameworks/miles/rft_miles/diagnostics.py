@@ -115,6 +115,11 @@ def before_train_step(args, rollout_id, step_id, model, optimizer, opt_param_sch
             print(f"[rft-diag] kept the starting weights at update {rollout_id}: "
                   + ", ".join(f"{label} {int(n)}" for label, n in zip(NAMES, _state["counts"].tolist()) if n)
                   + " tensors", flush=True)
+            unnamed = [(name, tuple(start.shape), float(start.double().norm()))
+                       for name, (label, _, start) in _state["tensors"].items() if label == "other"]
+            if unnamed:   # what no family pattern names, with its starting size: a drift there needs a look
+                print("[rft-diag] other on this rank: " + "; ".join(f"{n} {s} norm {v:.3g}" for n, s, v in unnamed[:8]),
+                      flush=True)
         return
     numbers = measure(model, _state)
     if _rank() == 0:
