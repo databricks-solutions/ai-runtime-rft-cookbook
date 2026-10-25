@@ -1,8 +1,10 @@
 # OfficeQA on upstream miles: Qwen3.6-35B-A3B answers Treasury Bulletin questions with retrieval and
 # compute tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
 #
-# Status: done (no qualification record yet). The twin of recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16,
-# matched setting by setting so that the two frameworks' runs compare:
+# Status: measured (qualification record of run oqa-q36-miles-03, 2026-10-25: the recipe as checked
+# in, drift logging on, every stage on code 7c2a9f1, every check passed). The twin of
+# recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, matched setting by setting so that the two
+# frameworks' runs compare:
 #   the same   model and revision, data, agent budgets (128 turns, 4,096 tokens a turn, a 98,304-token
 #              context), judge and sandbox, evaluation (vLLM from the verl image, 43 held-out
 #              questions x 4 samples, seed 42; a run compared with the verl run's baseline uses
@@ -20,8 +22,14 @@
 #              (max_off_policy_threshold); SGLang serves the training rollouts where verl uses vLLM;
 #              the data order and random streams.
 # GPU runs, 100 updates each, held-out supported pass@1 against the verl run's baseline (43 questions
-# x 4 samples, seed 42), where the verl run went 19.8% -> 22.7% (+2.9 points, 95% interval [-2.9, +9.3]):
-#   2026-10-24, the code of 92305c1 with the MoE load-balancing loss off in `--extra-args` (the
+# x 4 samples, seed 42):
+#   2026-10-25, measured, against the measured verl run's baseline (verl: 20.3% -> 23.8%, +3.5 points,
+#     95% interval [-2.9, +9.9]): 20.3% -> 23.8% (+3.5 [-3.5, +11.6]); probes 46.9% -> 46.9% (verl:
+#     57.8%); 236 of 236 episodes valid on each side. Almost every trained episode ends with an answer
+#     (233 of 236; verl's 199, which ends 18 at the token limit and 19 on the context budget). The KL
+#     to the base model reached 0.010 to 0.013 by updates 82-87, as verl's.
+#   2026-10-24, against the earlier verl run's baseline (verl: 19.8% -> 22.7%, +2.9 [-2.9, +9.3]),
+#     the code of 92305c1 with the MoE load-balancing loss off in `--extra-args` (the
 #     launcher's setting since): 19.8% -> 23.8% (+4.1 [-2.9, +11.6]); probes 43.8% -> 43.8% (verl:
 #     53.1%). Stopped after update 29 and resumed from the volume. The KL to the base model rose to
 #     0.013 by update 99, about as verl's (0.010), where the run below reached 0.032; the entropy stayed
@@ -33,7 +41,8 @@
 #     off in incoherent text. The weights moved about 1.5x as far as verl's and the MoE router 4.8x, and
 #     the KL to the base model grew about 3x as fast from the first updates on. With the loss off, after
 #     24 updates every parameter family had moved as far as verl's after 100 times sqrt(24/100).
-# The two frameworks' trained models score alike (22.7%, 23.8%); neither gain is significant.
+# The two frameworks' trained models score alike: 23.8% and 23.8% in the measured pair (22.7% and
+# 23.8% before); no single run's gain is significant.
 extends: agentic/miles
 description: OfficeQA on upstream miles, Qwen3.6-35B-A3B, hosted judge.
 task: officeqa
