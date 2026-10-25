@@ -1,0 +1,64 @@
+{
+ "files": {
+  "comparison.json": {
+   "original_sha256": "f4c3c8b99425db5ab6541612d5e625a890436c370b9e663727fabc8ee18962d3",
+   "replaced": {}
+  },
+  "export.json": {
+   "original_sha256": "70045881a8c66691cd9b2ebcc7cca002db365f90f3dbe3617e39ef4d9bd3f345",
+   "replaced": {
+    "<volume-root>": 1
+   }
+  },
+  "qualification.json": {
+   "original_sha256": "25558d7563d9bd15f6a85f1ad13792ac57c5c5163cb92857bb637fb1219e66d3",
+   "replaced": {
+    "<registry>/": 8,
+    "<volume-root>": 1
+   }
+  },
+  "receipts/baseline_eval-1792895937-main.host.local.json": {
+   "original_sha256": "8ac975855cfd383e2374b1b3e34d1d84dcc508dc90a231324d24b1474efa4133",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/compare-1792898341-main.host.local.json": {
+   "original_sha256": "4e0086fefb2c6fc9e18b57a4f0cf832ddee8710018b31cfc656f0a7ee83d4814",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/eval-1792897787-main.host.local.json": {
+   "original_sha256": "03279aec232a607eda66e2e222312dfadd70f0edcb5f6f8e96216b8b81c504ac",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/export-1792897428-main.host.local.json": {
+   "original_sha256": "b88f54ee5c99058e6af29b054d8148225535f2355b57094b72102577419df981",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/prep-1792895559-main.host.local.json": {
+   "original_sha256": "c2f0f7ce0764b8ef819bd3e702e6799a9d7d20b3da82fe93a62d573e3de59c65",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/stage_model-1792895747-main.host.local.json": {
+   "original_sha256": "606aa15106c883454fd4b8ee445e2724e640e8405df7a827b908e62c004cbe8a",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/train-1792895937-main.host.local.json": {
+   "original_sha256": "7ff1f1195204104cc3f21bf3987c78032f01ca03cf27e9de735f547fcc4c05c5",
+   "replaced": {
+    "<registry>/": 1
+   }
+  }
+ },
+ "schema": "rft-cookbook/sanitized/v1"
+}

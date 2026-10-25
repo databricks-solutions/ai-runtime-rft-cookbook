@@ -312,8 +312,10 @@ Results produced by earlier implementations are linked as history, not as the re
 The `compare` stage writes the record (`rft_cookbook.evidence.qualification`, the run's
 `qualification.json`): **measured** when every check passed on the recipe as checked in (a training
 or evaluation seed, the baseline run and the stages may differ), **smoke-tested** when they passed
-on a reduced run. No recipe has a record yet: until then the README calls a recipe **done** when its
-GPU runs passed (its header lists them), and **untested** otherwise.
+on a reduced run. Published records are in `docs/records/<run id>/`, with the run's comparison and stage receipts,
+sanitized by `python -m rft_cookbook.evidence.publish` (workspace paths and image registries become
+placeholders; `SANITIZED.json` names each original by its hash). A recipe without a record is
+**done** in the README when its GPU runs passed (its header lists them), and **untested** otherwise.
 
 Comparisons across frameworks are recipe comparisons: each reports its paired gain over its own
 baseline, with compute and judge cost, unless model, data, budgets, judge policy, evaluation
@@ -358,7 +360,7 @@ ai-runtime-rft-cookbook/
 │   ├── math/miles/{glm-5.3-flash-4layer_b300x8, glm-5.3-flash_b300x32}/
 │   ├── officeqa/verl/{qwen3.5-35b-a3b_h100x16, qwen3.6-35b-a3b_h100x16}/
 │   └── officeqa/miles/{qwen3.6-35b-a3b_h100x16, glm-5.3-flash_b300x64}/
-├── docs/
+├── docs/                         # records/<run id>/: published qualification records
 └── tests/
 ```
 
