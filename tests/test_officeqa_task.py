@@ -207,6 +207,18 @@ def test_a_masked_directory_that_holds_the_interpreter_is_masked_all_but_the_int
     assert masked == [str(home)] and interpreter == [str(venv)]   # the project around the venv stays hidden
 
 
+def test_an_interpreter_under_tmp_comes_back_inside_the_private_tmp(tmp_path, monkeypatch):
+    venv = tmp_path / "ci" / "venv"
+    (venv / "bin").mkdir(parents=True)
+    monkeypatch.setattr(sandbox, "MASKED", (str(tmp_path / "absent"),))
+    for name in ("prefix", "base_prefix"):
+        monkeypatch.setattr(sandbox.sys, name, str(venv))
+    monkeypatch.setattr(sandbox.sys, "executable", str(venv / "bin" / "python"))
+    if not str(venv.resolve()).startswith("/tmp/"):
+        pytest.skip("pytest's temporary directory is not under /tmp here")
+    assert sandbox._masked_dirs() == ([], [str(venv.resolve())])
+
+
 @pytest.mark.skipif(not sandbox.bwrap_available(), reason="needs bubblewrap and user namespaces")
 def test_strict_compute_cannot_see_the_checkout_beside_its_interpreter():
     checkout = Path(__file__).resolve().parents[1]

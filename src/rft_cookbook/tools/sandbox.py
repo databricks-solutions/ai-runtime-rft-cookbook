@@ -206,11 +206,8 @@ def _masked_dirs() -> tuple[list[str], list[str]]:
     """The directories to mask, and the interpreter's directories inside them to bind back."""
     interpreter = {os.path.realpath(sys.prefix), os.path.realpath(sys.base_prefix),
                    os.path.dirname(os.path.realpath(sys.executable))}
-    masked, inside = [], set()
-    for directory in MASKED:
-        if not os.path.isdir(directory):
-            continue
-        masked.append(directory)
+    masked, inside = [d for d in MASKED if os.path.isdir(d)], set()
+    for directory in [*masked, "/tmp"]:   # /tmp is private in the sandbox: an interpreter there comes back too
         real = os.path.realpath(directory)
         inside |= {path for path in interpreter if path == real or path.startswith(real + os.sep)}
     # a directory already inside another bound one needs no bind of its own
