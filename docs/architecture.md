@@ -198,9 +198,12 @@ hook, the retention attestation, checkpoint publishing and the launch command.
   truncated terminal turn) raises: verl's V1 replay buffer then drops the whole prompt group and
   refills it, so the sample neither enters the update nor biases its group's baseline. verl refills
   without limit, so a broken dependency would spin without training: after
-  `train.max_consecutive_exclusions` failed episodes in a row in one agent-loop process (a loop
-  that cannot be built, or a prompt that leaves no room for a turn, counts), the loop writes the
-  run's `train/ABORT.json` and the launcher stops verl.
+  `train.max_consecutive_exclusions` failed episodes in one agent-loop process without a decided
+  one between them (a loop that cannot be built, or a prompt that leaves no room for a turn,
+  counts; a valid zero that needed no judge neither counts nor ends the streak, since in a judge
+  outage those still score), the loop writes the run's `train/ABORT.json` and the launcher stops
+  verl. When the failures are the judge's, rollouts first wait for it (each invalid score is
+  retried every minute) for up to `train.judge_outage_wait_s` (`rft_cookbook.agent.guard`).
 - Records: each loop writes its `EpisodeRecord`s as closed JSONL chunks to the run's volume.
 
 **miles** (`frameworks/miles`), upstream only. Hook paths are dotted (`module.attr`); miles
@@ -225,7 +228,7 @@ Failure transport. Upstream generation catches agent exceptions and still collec
 samples, so cookbook exception types are not enough. The agent function returns the score with
 the episode's status; a sample without a score (the function raised, or its return was lost) gets
 no reward, so its group is dropped, and a raising function counts toward
-`train.max_consecutive_exclusions` like any excluded episode.
+`train.max_consecutive_exclusions` like any excluded episode, under the same guard as verl's loop.
 
 Adapters are the only code that imports a framework. Core modules must import without any
 framework installed.

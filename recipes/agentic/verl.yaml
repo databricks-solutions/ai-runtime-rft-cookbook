@@ -30,7 +30,9 @@ train:
   seed: 42
   num_warmup_batches: 1
   max_off_policy_threshold: 4  # model versions a trajectory may span before its group is dropped
-  max_consecutive_exclusions: 32   # failed episodes in a row (one agent-loop process) that stop the run
+  max_consecutive_exclusions: 32   # failed episodes, without a decided one between them (one agent-loop
+                                   # process), that stop the run
+  judge_outage_wait_s: 1800        # when those are judge failures, how long rollouts wait for the judge first
   save_freq: 1
   keep_local_checkpoints: 2
   logger: [console]

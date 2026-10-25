@@ -173,7 +173,8 @@ def agent_loops(recipe: dict[str, Any], paths: dict[str, Any]) -> list[dict[str,
              "budgets": dict(recipe.get("agent") or {}), "episode_dir": f"{paths['episodes']}/train",
              "model": {"id": recipe["model"]["id"], "revision": recipe["model"]["revision"]},
              "abort_file": f"{paths['run_dir']}/train/{ABORT_FILE}",
-             "max_consecutive_exclusions": int(recipe["train"]["max_consecutive_exclusions"])}
+             "max_consecutive_exclusions": int(recipe["train"]["max_consecutive_exclusions"]),
+             "judge_outage_wait_s": float(recipe["train"].get("judge_outage_wait_s", 1800))}
     resources = task_resources(recipe, paths)
     if resources and resources.get("judge", {}).get("concurrency"):
         # every agent-loop worker is its own process with its own judge: split the run's limit, rounding

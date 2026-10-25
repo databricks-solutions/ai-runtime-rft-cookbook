@@ -22,8 +22,9 @@ reward, under the same rules as verl's loop (rft_cookbook.agent.episode.eligibil
 drops the whole group and samples another prompt, as verl does, so an excluded episode never
 reaches the update and never biases its group's baseline. An episode the function cannot run at
 all (it raises: a setup or driver error) is excluded too, since miles then finds no score
-(rft_miles.reward). After `max_consecutive_exclusions` excluded episodes in a row the function
-asks the launcher to stop the run (`abort_file`).
+(rft_miles.reward). After `max_consecutive_exclusions` excluded episodes without a decided one
+between them (rft_cookbook.agent.guard; a judge outage first pauses for `judge_outage_wait_s`) the
+function asks the launcher to stop the run (`abort_file`).
 """
 from __future__ import annotations
 
@@ -33,16 +34,16 @@ from pathlib import Path
 from typing import Any
 
 from rft_cookbook.agent.episode import eligibility
+from rft_cookbook.agent.guard import ExclusionGuard
 from rft_cookbook.agent.harness import OpenAIChatClient, TemplateCounter, run_episode
 from rft_cookbook.air.stages import request_abort
 from rft_cookbook.evidence.sink import shared_sink
-from rft_cookbook.scoring.base import score_episode
 from rft_cookbook.tasks import load_task
 
 ROW_KEY = "rft_row"
 CONFIG_KEY = "rft_config"
 REWARD_KEY = "rft_reward"
-_FAILED_IN_A_ROW = [0]   # episodes in a row this process excluded
+_GUARD: list[ExclusionGuard] = []   # one per process: every episode runs in it (inline)
 
 
 @lru_cache(maxsize=4)
@@ -65,7 +66,7 @@ async def run(base_url: str, prompt: Any, request_kwargs: dict[str, Any], metada
     try:
         return await _episode(base_url, request_kwargs, metadata)
     except Exception as error:   # no episode at all: excluded like any other, so a broken setup stops the run
-        _count_exclusion(_config(metadata[CONFIG_KEY]), f"{type(error).__name__}: {error}")
+        _count(_config(metadata[CONFIG_KEY]), None, True, f"{type(error).__name__}: {error}")
         raise
 
 
@@ -81,7 +82,7 @@ async def _episode(base_url: str, request_kwargs: dict[str, Any], metadata: dict
     record = await run_episode(task, client, row, counter=counter, model=config["model"],
                                settings={"driver": "miles", "parser": config["tool_parser"]})
     if record.status == "ok":   # a failed episode is never scored
-        await score_episode(task.scorer, record, row["ground_truth"], row.get("metadata"))
+        await _guard(config).score(task.scorer, record, row["ground_truth"], row.get("metadata"))
     if sink:
         sink.write(record)
     # the session server records every token it served, so the terminal turn is complete here
@@ -89,16 +90,22 @@ async def _episode(base_url: str, request_kwargs: dict[str, Any], metadata: dict
     if verdict != "excluded" and not record.turns:   # no model call: the session holds no sample
         verdict, reason = "excluded", "no_turn"
     if verdict == "excluded":
-        _count_exclusion(config, f"{record.status}: {reason}")
+        _count(config, record, True, f"{record.status}: {reason}")
         return {REWARD_KEY: None, "rft_scored": False, "rft_episode_id": record.episode_id,
                 "rft_status": record.status, "rft_excluded": reason}
-    _FAILED_IN_A_ROW[0] = 0
+    _count(config, record, False)
     return {REWARD_KEY: float(record.score.value), "rft_scored": True,
             "rft_episode_id": record.episode_id, "rft_status": record.status}
 
 
-def _count_exclusion(config: dict[str, Any], reason: str) -> None:
-    _FAILED_IN_A_ROW[0] += 1
-    limit = int(config.get("max_consecutive_exclusions") or 0)
-    if limit and _FAILED_IN_A_ROW[0] == limit:
-        request_abort(config.get("abort_file"), f"{limit} episodes in a row were excluded; last: {reason}")
+def _guard(config: dict[str, Any]) -> ExclusionGuard:
+    if not _GUARD:
+        _GUARD.append(ExclusionGuard(int(config.get("max_consecutive_exclusions") or 0),
+                                     wait_s=float(config.get("judge_outage_wait_s", 1800))))
+    return _GUARD[0]
+
+
+def _count(config: dict[str, Any], record, excluded: bool, reason: str = "") -> None:
+    stop = _guard(config).record(record, excluded, reason)
+    if stop:
+        request_abort(config.get("abort_file"), stop)

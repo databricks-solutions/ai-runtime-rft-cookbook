@@ -319,7 +319,7 @@ def test_an_excluded_episode_has_no_reward_and_a_run_of_them_stops_training(tmp_
     import transformers
     monkeypatch.setattr(transformers.AutoTokenizer, "from_pretrained", staticmethod(lambda path: object()))
     agent._setup.cache_clear()
-    monkeypatch.setattr(agent, "_FAILED_IN_A_ROW", [0])
+    monkeypatch.setattr(agent, "_GUARD", [])
     abort = tmp_path / "train" / "ABORT.json"
     config = tmp_path / "agent.json"
     config.write_text(json.dumps({"task": "math", "budgets": {"max_turns": 2}, "resources": None, "tokenizer": "tok",
@@ -332,7 +332,7 @@ def test_an_excluded_episode_has_no_reward_and_a_run_of_them_stops_training(tmp_
     first = asyncio.run(agent.run("http://router/sessions/s1", None, {}, metadata))
     assert first[agent.REWARD_KEY] is None and first["rft_excluded"] == "infra_failure" and not abort.exists()
     asyncio.run(agent.run("http://router/sessions/s2", None, {}, metadata))
-    assert "2 episodes in a row were excluded" in json.loads(abort.read_text())["reason"]
+    assert "2 episodes were excluded" in json.loads(abort.read_text())["reason"]
 
 
 def test_an_agent_function_that_cannot_run_counts_as_excluded(tmp_path, monkeypatch):
@@ -340,7 +340,7 @@ def test_an_agent_function_that_cannot_run_counts_as_excluded(tmp_path, monkeypa
         raise OSError("no tokenizer at tok")
 
     monkeypatch.setattr(agent, "_setup", broken)
-    monkeypatch.setattr(agent, "_FAILED_IN_A_ROW", [0])
+    monkeypatch.setattr(agent, "_GUARD", [])
     abort = tmp_path / "train" / "ABORT.json"
     config = tmp_path / "agent.json"
     config.write_text(json.dumps({"abort_file": str(abort), "max_consecutive_exclusions": 2}))

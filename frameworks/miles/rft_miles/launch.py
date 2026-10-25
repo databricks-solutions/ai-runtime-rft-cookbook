@@ -116,6 +116,7 @@ def _agent_inputs(recipe, paths) -> int:
         "task": recipe["task"], "budgets": dict(recipe.get("agent") or {}), "resources": task_resources(recipe, paths),
         "abort_file": paths["abort_file"],
         "max_consecutive_exclusions": int(recipe["train"].get("max_consecutive_exclusions") or 0),
+        "judge_outage_wait_s": float(recipe["train"].get("judge_outage_wait_s", 1800)),
         "tokenizer": paths["local_hf"], "chat_template_kwargs": model.get("chat_template_kwargs") or {},
         "episode_dir": f"{paths['episodes']}/train", "model": {"id": model["id"], "revision": model["revision"]},
         "tool_parser": model["tool_parser"], "served_model": "model",
