@@ -48,6 +48,8 @@ rollout:
 
 checkpoint:
   hash_files: false
+  keep: null                   # published checkpoints kept (newest first, and the newest with complete
+                               # Hugging Face weights); null keeps all
 
 compute:
   nodes: 1

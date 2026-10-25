@@ -151,6 +151,7 @@ def train(recipe, paths, rendered) -> None:
 
     store = CheckpointStore(paths["checkpoints"], hash_files=False)
     latest, total = store.latest(), int(recipe["train"]["num_rollout"])
+    store.set_retention((recipe.get("checkpoint") or {}).get("keep"))   # the save hook applies it
     if latest is not None and latest.step >= total:
         print(f"[train] {latest.name} already reaches train.num_rollout; nothing to train")
         return

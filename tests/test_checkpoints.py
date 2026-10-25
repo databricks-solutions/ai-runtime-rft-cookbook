@@ -106,6 +106,30 @@ def test_retention_keeps_the_newest_and_the_pinned(tmp_path):
     assert not any((tmp_path / "volume" / f"global_step_{s}" / COMPLETE).exists() for s in (1, 3))
 
 
+def test_incomplete_hf_weights_are_recorded_at_publish_and_retention_keeps_the_last_complete_ones(tmp_path):
+    store = CheckpointStore(tmp_path / "volume", hash_files=False)
+    for step in (1, 2, 3):
+        bundle = native_save(tmp_path / "local", step)
+        if step > 1:   # the framework's export broke after the first save; the bundles still resume
+            next((Path(bundle.root) / bundle.hf_path).glob("*.safetensors")).unlink()
+        result = store.publish(bundle)
+        assert result.status == "published" and bool(result.hf_problems) is (step > 1)
+    assert [p.exportable for p in store.list()] == [True, False, False]
+    assert store.retain(keep_last=1) == [2]   # step 1 is kept: no newer bundle has complete weights
+    assert [p.step for p in store.list()] == [1, 3]
+
+
+def test_the_store_records_its_retention(tmp_path):
+    store = CheckpointStore(tmp_path / "volume")
+    assert store.retention() is None
+    store.set_retention(2)
+    assert CheckpointStore(tmp_path / "volume").retention() == 2
+    store.set_retention(None)
+    assert store.retention() is None
+    with pytest.raises(ValueError):
+        store.set_retention(0)
+
+
 def test_a_save_inside_the_store_is_published_in_place(tmp_path):
     store = CheckpointStore(tmp_path / "volume", hash_files=False)
     bundle = native_save(tmp_path / "volume", 25)

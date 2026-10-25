@@ -1,6 +1,6 @@
 # Derived from verl-on-air (Apache License 2.0), engine/stage_model.py at 495b583;
 # modified for ai-runtime-rft-cookbook: arguments instead of environment defaults; returns the
-# staging record. See THIRD_PARTY_NOTICES.md.
+# staging record; the lock is created exclusively, read back and kept alive. See THIRD_PARTY_NOTICES.md.
 """Stage a Hugging Face checkpoint into a Unity Catalog volume once, instead of on every run.
 
 UC volumes are a FUSE mount that supports sequential writes but not the random-access writes
@@ -13,7 +13,11 @@ downloaded at that commit. Each file is checked against the Hub's own metadata (
 weights, git blob hash for small files) before it is copied; the finished directory records
 what it holds in STAGED.json. A directory that already holds a different revision is refused.
 Resumable: a file already on the volume counts only if its content hash matches; a lock file
-keeps two staging jobs from writing the same directory at once.
+keeps two staging jobs from writing the same directory at once. It is created exclusively and
+then read back, since a volume shared by several nodes may let two creations both succeed (the
+last writer's token is then what both read, and the other job stops); it is rewritten after every
+file (a volume ignores `utime`: a file's time is when it was last written), and a lock not
+rewritten for STAGE_LOCK_STALE_H is taken over.
 
     python -m rft_cookbook.air.stage_model --model-id Qwen/Qwen3.5-2B --revision <sha> --dest <dir>
 """
@@ -27,6 +31,7 @@ import shutil
 import socket
 import sys
 import time
+import uuid
 
 # Weights only. Skipping duplicate .bin/.pth formats matters: several Qwen repos
 # ship both safetensors and consolidated files, doubling the transfer for nothing.
@@ -37,6 +42,7 @@ IGNORE_PREFIXES = ("original/",)
 COPY_BUF = 32 * 1024 * 1024   # 32 MiB sequential writes to the FUSE mount
 STAGED, PROGRESS, LOCK = "STAGED.json", ".staging.json", ".staging.lock"
 LOCK_STALE_S = float(os.environ.get("STAGE_LOCK_STALE_H", "12")) * 3600
+LOCK_SETTLE_S = 2.0   # before the lock is read back
 
 
 def pick_scratch(explicit: str | None = None) -> str:
@@ -112,17 +118,64 @@ def write_json(path: str, obj: dict) -> None:
     os.replace(tmp, path)
 
 
-def take_lock(model_dir: str) -> str:
+def take_lock(model_dir: str) -> tuple[str, str]:
+    """`(lock path, this job's token)`; exits if another staging job holds the lock."""
     lock = os.path.join(model_dir, LOCK)
-    if os.path.exists(lock):
-        age = time.time() - os.path.getmtime(lock)
-        if age < LOCK_STALE_S:
-            sys.exit(f"FATAL: {lock} is held ({open(lock).read().strip()}, {age / 60:.0f} min old): another "
-                     "staging job is writing this directory. Delete the lock only if none is running.")
-        print(f"WARNING: taking over a stale lock ({age / 3600:.1f} h old): {lock}")
-    with open(lock, "w") as fh:
-        fh.write(f"host={socket.gethostname()} pid={os.getpid()} since={time.strftime('%Y-%m-%dT%H:%M:%S%z')}")
-    return lock
+    token = (f"host={socket.gethostname()} pid={os.getpid()} since={time.strftime('%Y-%m-%dT%H:%M:%S%z')} "
+             f"id={uuid.uuid4().hex}")
+    for _ in range(2):
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+        except FileExistsError:
+            try:
+                age = time.time() - os.path.getmtime(lock)
+                holder = open(lock).read().strip()
+            except FileNotFoundError:
+                continue   # released meanwhile
+            if age < LOCK_STALE_S:
+                sys.exit(f"FATAL: {lock} is held ({holder}, renewed {age / 60:.0f} min ago): another staging job "
+                         "is writing this directory. Delete the lock only if none is running.")
+            print(f"WARNING: taking over a stale lock ({age / 3600:.1f} h old): {lock}")
+            try:   # whichever job renames it first takes over; the other finds a fresh lock
+                os.replace(lock, f"{lock}.stale-{uuid.uuid4().hex[:8]}")
+            except FileNotFoundError:
+                pass
+            continue
+        with os.fdopen(fd, "w") as fh:
+            fh.write(token)
+        time.sleep(LOCK_SETTLE_S)
+        if _lock_holder(lock) != token:
+            sys.exit(f"FATAL: another staging job took {lock} at the same time ({_lock_holder(lock)})")
+        return lock, token
+    sys.exit(f"FATAL: could not take {lock}")
+
+
+def _lock_holder(lock: str) -> str | None:
+    try:
+        return open(lock).read().strip()
+    except FileNotFoundError:
+        return None
+
+
+def renew_lock(lock: str, token: str) -> None:
+    """Rewrite the lock, which renews its modification time, if this job still holds it."""
+    if _lock_holder(lock) != token:
+        return
+    tmp = f"{lock}.{uuid.uuid4().hex[:8]}.tmp"
+    try:
+        with open(tmp, "w") as fh:
+            fh.write(token)
+        os.replace(tmp, lock)
+    except OSError:
+        pass
+
+
+def release_lock(lock: str, token: str) -> None:
+    if _lock_holder(lock) == token:   # a job that took over a lock it thought stale now owns it
+        try:
+            os.remove(lock)
+        except OSError:
+            pass
 
 
 WEIGHT_SUFFIXES = (".safetensors", ".bin", ".pt", ".pth", ".gguf", ".msgpack", ".h5")
@@ -158,7 +211,7 @@ def stage(MODEL_ID: str, MODEL_REVISION: str, MODEL_DIR: str, scratch_dir: str |
         print(f"already staged: {MODEL_ID}@{commit} ({STAGED}) -- nothing to do")
         return read_json(os.path.join(MODEL_DIR, STAGED))
 
-    lock = take_lock(MODEL_DIR)
+    lock, token = take_lock(MODEL_DIR)
     try:
         siblings = sorted((s for s in info.siblings if wanted(s.rfilename)
                            and not (tokenizer_only and s.rfilename.endswith(WEIGHT_SUFFIXES))),
@@ -183,6 +236,7 @@ def stage(MODEL_ID: str, MODEL_REVISION: str, MODEL_DIR: str, scratch_dir: str |
                 if progress["files"].get(name) == rec or (digest and file_digest(dst, digest[0]) == digest[1]):
                     progress["files"][name] = rec
                     write_json(progress_path, progress)
+                    renew_lock(lock, token)
                     skipped += 1
                     done_bytes += size
                     print(f"[{idx}/{len(siblings)}] skip  {name}  ({size / 1024**2:.0f} MiB, verified)")
@@ -205,6 +259,7 @@ def stage(MODEL_ID: str, MODEL_REVISION: str, MODEL_DIR: str, scratch_dir: str |
                 pass
             progress["files"][name] = rec
             write_json(progress_path, progress)
+            renew_lock(lock, token)
             done_bytes += size
             mib = size / 1024**2
             pct = 100 * done_bytes / total if total else 100
@@ -236,10 +291,7 @@ def stage(MODEL_ID: str, MODEL_REVISION: str, MODEL_DIR: str, scratch_dir: str |
         write_json(os.path.join(MODEL_DIR, STAGED), staged)
         os.remove(progress_path)
     finally:
-        try:
-            os.remove(lock)
-        except OSError:
-            pass
+        release_lock(lock, token)
 
     on_disk = sum(os.path.getsize(os.path.join(root, f)) for root, _, fs in os.walk(MODEL_DIR) for f in fs)
     print(f"\n{on_disk / 1024**3:.1f} GiB staged at {MODEL_DIR}  ({MODEL_ID}@{commit}, see {STAGED})")

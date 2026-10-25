@@ -7,7 +7,8 @@
 | episode driver | `--custom-generate-function-path miles.rollout.generate_hub.agentic_tool_call.generate` with `--custom-agent-function-path` (inline) on session server v2: the cookbook's Chat Completions harness drives the episode against the session's OpenAI endpoint; the session server records tokens and log-probabilities | `agent.run` |
 | replay matching | `--session-message-matcher`: the harness replays a turn as its policy read it (reasoning split from the text, only the calls it answered); the matcher accepts exactly that reading of the stored message, so an episode stays one lineage and trains as one sequence, as on verl | `session.matches` |
 | reward | `--custom-rm-path`: the score the agent function returned, merged into every sample of the session; an excluded episode has none, and miles drops its group and samples another prompt | `reward.reward` |
-| checkpoint publishing | `--custom-megatron-post-save-hook-path` (rank 0, after the save); `--save` is the store, so the bundle is published in place | `checkpoint.publish` |
+| retention attestation | `--session-sample-postprocessor-path`: miles' default post-processing, then each sample's attestation (tokens, loss tokens, their hash, log-probability coverage, whether the terminal answer survived collection); a sample cut inside its terminal answer loses its reward | `attest.postprocess` |
+| checkpoint publishing | `--custom-megatron-post-save-hook-path` (rank 0, after the save); `--save` is the store, so the bundle is published in place; incomplete Hugging Face weights are recorded; the hook keeps the newest `checkpoint.keep` bundles (and the newest with complete weights) | `checkpoint.publish` |
 | data | prompt rows (`--prompt-data`) carrying the cookbook row and the run's agent settings in `metadata` | `launch` |
 | launch | the model's launcher (`model.launcher`): upstream's (e.g. `scripts/run_glm5_3_flash.py`) or the cookbook's own (`rft_miles/launchers/`), with the cookbook's flags in its `--extra-args` | `render`, `launch`, `launch/node.sh` |
 | tools | the task's node-local tool service on every node for the length of the train stage, as on verl | `launch` |
@@ -84,7 +85,7 @@ The upstream launcher validates the node and GPU counts it supports for a model.
   every turn: a first Qwen3.6 smoke made 499 samples of 16 episodes, each with its whole prefix.
 - **The source is fetched at job start.** GitHub generates the tarball; if its bytes ever change,
   the sha256 check fails the job rather than run other code.
-- **Every save stays on the volume.** The adapter publishes each bundle in place but does not prune
-  them yet (verl's `checkpoint.keep` has no miles counterpart): a Qwen3.6 run keeps all four saves.
-- **No retention attestation yet.** miles' episode records have no `collection` entries; the session
-  sample postprocessor that would write them is not implemented.
+- **Attestations live beside the episode records.** Session server v2 builds a session's samples
+  after the agent function has written its record, so a miles record has no `collection` entries;
+  each sample's attestation is a line of its own under `<episode dir>/attestations`, with its
+  episode id.

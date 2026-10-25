@@ -43,6 +43,7 @@ from rft_cookbook.tasks import load_task
 ROW_KEY = "rft_row"
 CONFIG_KEY = "rft_config"
 REWARD_KEY = "rft_reward"
+ATTESTATION_DIR_KEY = "rft_attestation_dir"
 _GUARD: list[ExclusionGuard] = []   # one per process: every episode runs in it (inline)
 
 
@@ -85,17 +86,20 @@ async def _episode(base_url: str, request_kwargs: dict[str, Any], metadata: dict
         await _guard(config).score(task.scorer, record, row["ground_truth"], row.get("metadata"))
     if sink:
         sink.write(record)
-    # the session server records every token it served, so the terminal turn is complete here
+    # the session server records every token it served; whether collection keeps the terminal
+    # turn whole is attested per sample, after this returns (rft_miles.attest)
     verdict, reason = eligibility(record, True)
     if verdict != "excluded" and not record.turns:   # no model call: the session holds no sample
         verdict, reason = "excluded", "no_turn"
+    episode = {"rft_episode_id": record.episode_id, "rft_status": record.status,
+               "rft_answered": record.answer is not None,
+               "rft_terminal_turn": record.termination.terminal_turn if record.termination else None,
+               ATTESTATION_DIR_KEY: f"{config['episode_dir']}/attestations" if config.get("episode_dir") else None}
     if verdict == "excluded":
         _count(config, record, True, f"{record.status}: {reason}")
-        return {REWARD_KEY: None, "rft_scored": False, "rft_episode_id": record.episode_id,
-                "rft_status": record.status, "rft_excluded": reason}
+        return {REWARD_KEY: None, "rft_scored": False, "rft_excluded": reason, **episode}
     _count(config, record, False)
-    return {REWARD_KEY: float(record.score.value), "rft_scored": True,
-            "rft_episode_id": record.episode_id, "rft_status": record.status}
+    return {REWARD_KEY: float(record.score.value), "rft_scored": True, **episode}
 
 
 def _guard(config: dict[str, Any]) -> ExclusionGuard:

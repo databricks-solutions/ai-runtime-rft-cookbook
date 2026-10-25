@@ -107,6 +107,7 @@ rollout:
 
 checkpoint:
   hash_files: false             # sizes are checked; hashing would read every save back from the volume
+  keep: 2                       # as the verl recipe: a save is 555 GB with its optimizer state
 
 compute:
   nodes: 2                            # one trains, one serves (rft_miles/launchers/qwen3_6_35b_a3b.py)

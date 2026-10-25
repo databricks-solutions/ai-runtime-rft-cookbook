@@ -351,6 +351,22 @@ def test_an_agent_function_that_cannot_run_counts_as_excluded(tmp_path, monkeypa
     assert "last: OSError: no tokenizer at tok" in json.loads(abort.read_text())["reason"]
 
 
+def test_the_save_hook_keeps_what_the_store_retention_names(tmp_path, capsys):
+    save = tmp_path / "checkpoints"
+    CheckpointStore(save).set_retention(2)
+    for rollout_id in range(4):
+        iteration = save / f"iter_{rollout_id:07d}"
+        hf = iteration / "hf"
+        hf.mkdir(parents=True)
+        for name, size in (("__0_0.distcp", 64), ("metadata.json", 2)):
+            (iteration / name).write_bytes(b"x" * size)
+        (hf / "config.json").write_text("{}")
+        (hf / "model.safetensors").write_bytes(b"w" * 8)
+        checkpoint.publish(SimpleNamespace(save=str(save)), rollout_id, str(iteration), str(hf))
+    assert [p.name for p in CheckpointStore(save).list()] == ["iter_0000002", "iter_0000003"]
+    assert "deleted steps [2]" in capsys.readouterr().out
+
+
 def test_a_megatron_save_is_published_in_place(tmp_path, capsys):
     save = tmp_path / "checkpoints"
     iteration = save / "iter_0000001"

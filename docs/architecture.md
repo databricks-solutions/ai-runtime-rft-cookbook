@@ -217,7 +217,7 @@ splits them at the last dot.
 | data | prompt rows (`--prompt-data`) carrying the cookbook row and the run's agent settings in `metadata` |
 | checkpoint publishing | `--save`, `--load`, `--save-interval`, `--save-hf`, `--custom-megatron-post-save-hook-path rft_miles.checkpoint.publish` (rank 0, synchronous) |
 | model support | the model's launcher (`model.launcher`): upstream's where it fits (GLM-5.3-Flash), the cookbook's own under `rft_miles/launchers/` where a recipe must match a verl recipe (Qwen3.6-35B-A3B) |
-| retention attestation | not yet: `--session-sample-postprocessor-path` (session server v2) is the hook for it; until then a miles episode record has no `collection` entries |
+| retention attestation | `--session-sample-postprocessor-path rft_miles.attest.postprocess` (session server v2): miles' default post-processing, then one attestation per sample; a sample cut inside its terminal answer loses its reward. The samples are built after the agent function wrote its record, so the attestations are lines of their own under `<episode dir>/attestations`, with their episode id, not the record's `collection` |
 
 Session server v2 rules out `--group-rm`, `--recompute-logprobs-via-prefill` and partial rollout;
 no recipe uses them. Upstream's GLM-5.3-Flash launcher turns off optimizer and RNG saving when it
@@ -246,7 +246,9 @@ position, in-flight rollout state, Hugging Face weights).
 
 - **publish:** copies every required artifact to the Unity Catalog volume, verifies sizes and
   hashes against a manifest, and writes the completion marker last, only after the whole bundle
-  verifies. It returns a result (`published | failed`, with the reason). While a copy runs, its
+  verifies. The bundle's Hugging Face weights are checked too; what is missing is recorded in the
+  manifest and the result (`hf_problems`) without failing it, since the bundle still resumes. It
+  returns a result (`published | failed`, with the reason). While a copy runs, its
   source is protected from the framework's own retention. Training waits on the result at the
   next save and at exit (`drain`).
 - **latest:** the newest bundle with a completion marker; partial copies are ignored;
@@ -255,7 +257,10 @@ position, in-flight rollout state, Hugging Face weights).
 - **export:** locates the Hugging Face weights the framework wrote and verifies them (complete
   files, loadable config, hash). A missing or failed export fails the operation; miles logs
   periodic export errors without failing, so its marker is checked explicitly;
-- **retention:** keeps the last N and every evaluated bundle.
+- **retention:** keeps the last N, every bundle the caller names (an evaluated one), and the
+  newest bundle whose Hugging Face weights were complete. verl's hook applies `checkpoint.keep`
+  from its configuration; miles' hook cannot be configured, so its train stage records the number
+  in the store (`set_retention`) and the hook reads it there.
 
 Checkpoints are written to a filesystem shared by all trainer ranks, or each node publishes its
 own shards; a rank-0 hook never assumes it can see other nodes' local files.
@@ -268,7 +273,8 @@ framework reports the save durable. On several nodes only `volume` resolves: ver
 can land on another node than the driver that runs the hook, and TransferQueue saves its state
 from every node into one directory. The 35B OfficeQA recipe saves ~490 GB each time (70 GB of
 Hugging Face weights, 420 GB of optimizer state), so it records sizes, not hashes
-(`hash_files: false`), and keeps the newest two (`keep: 2`); verl itself deletes nothing.
+(`hash_files: false`), and keeps the newest two (`keep: 2`), as its miles twin does (555 GB a save);
+neither framework deletes a save itself.
 
 Milestone 1 uses synchronous native saves and synchronous publication. Background publication
 follows once the lifecycle above is tested.
