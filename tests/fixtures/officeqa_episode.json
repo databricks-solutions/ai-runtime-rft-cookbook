@@ -26,6 +26,7 @@
    "tool_timeout_s": 60.0
   },
   "prompt_sha256": "eeba9c8b6135076d22cecebb5267bfa04404875837196902caf0637754e86069",
+  "scorer": null,
   "terminal": {
    "kind": "tool",
    "tool": "submit_report"

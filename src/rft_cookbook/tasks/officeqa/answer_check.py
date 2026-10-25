@@ -1,12 +1,16 @@
 # Derived from verl-on-air (Apache License 2.0), usecases/officeqa/answer_check.py at 495b583;
-# modified for ai-runtime-rft-cookbook: package-relative import. See THIRD_PARTY_NOTICES.md.
+# modified for ai-runtime-rft-cookbook: package-relative import; dash and accounting negatives; text
+# golds matched as the whole answer. See THIRD_PARTY_NOTICES.md.
 """OfficeQA answer check: the submitted answer against gold, with scale, sign and list length.
 
 The vendored matcher (``answer_match``) compares bare numbers, so it accepts "543 billion"
 for "543 million" and rejects "543000000"; it reads "-$1,299 million" as a positive 1,299;
 and it accepts any number in the answer that equals gold, extra list items included.
-Numeric golds are compared here instead. Golds with words in them (names, dates) keep the
-vendored matcher, which checks the words as well.
+Numeric golds are compared here instead; a figure in parentheses, "(5)", is negative, as in the
+Bulletin's tables, and so is one after an en dash. Golds that are only words ("Yes", a fund's
+name) must be the answer, or lead it before its explanation: the vendored matcher accepts them
+anywhere in it ("Yes" in "not yes"). Golds that mix words and figures (dates) keep the vendored
+matcher, which checks both.
 
 An answer must state its final value or values, alone. A single value must lead the
 answer: everything from the first explanation marker on is working, and figures there do
@@ -33,7 +37,12 @@ _NUMBER = re.compile(
 # Where an answer's explanation starts: a parenthesis, a new line, a sentence end, a spaced
 # dash, "=", ";", ":" or "i.e."
 _EXPLANATION = re.compile(r"\(|\n|\.\s| [-–—] | = |;|:|\bi\.e\.")
-_ASIDE = re.compile(r"\([^()]*\)")
+# A figure in parentheses is an accounting negative, not an aside.
+_PARENTHESIZED = r"\(\s*-?\$?\s*\d[\d,]*(?:\.\d+)?\s*(?:%|percent|(?:thousand|million|billion|trillion)s?)?\s*\)"
+_ASIDE = re.compile(rf"(?!{_PARENTHESIZED})\([^()]*\)")
+_DASHES = str.maketrans({"\u2012": "-", "\u2013": "-", "\ufe63": "-", "\uff0d": "-"})
+# Where a text answer's explanation starts, after the gold words.
+_TEXT_END = re.compile(r"\s*(?:[,.;:(\[]|[-\u2013\u2014]\s)|\s+[-\u2013\u2014]")
 
 
 @dataclass(frozen=True)
@@ -46,7 +55,9 @@ class Value:
 def check(answer: str, gold: str, *, tolerance: float = 0.0) -> tuple[bool, str]:
     """(correct, reason); the reason is empty when the answer is correct."""
     gold_values = values(gold)
-    if not gold_values or has_significant_text(gold)[0]:
+    if not gold_values:
+        return (True, "") if _text_leads(answer, gold) else (False, WRONG)
+    if has_significant_text(gold)[0]:
         return (True, "") if score_answer(gold, answer, tolerance=tolerance) > 0 else (False, WRONG)
     keep_years = any(value.year for value in gold_values)
 
@@ -64,14 +75,29 @@ def check(answer: str, gold: str, *, tolerance: float = 0.0) -> tuple[bool, str]
 def values(text: str) -> list[Value]:
     """Every number in ``text`` with its sign and unit; currency signs are dropped."""
     found = []
-    for match in _NUMBER.finditer(normalize_text(text).replace("$", "") if text else ""):
+    text = normalize_text(text).translate(_DASHES).replace("$", "") if text else ""
+    for match in _NUMBER.finditer(text):
         number = float(match["digits"].replace(",", "") + (match["fraction"] or ""))
         unit = match["unit"]
         if unit is not None:
             unit = "%" if unit == "%" or unit.lower() == "percent" else _SCALES[unit.lower().rstrip("s")]
         year = unit is None and not match["fraction"] and "," not in match["digits"] and 1900 <= number <= 2100
-        found.append(Value(-number if match["sign"] else number, unit, year))
+        negative = match["sign"] or (re.search(r"\(\s*$", text[:match.start()])
+                                     and re.match(r"\s*\)", text[match.end():]))
+        found.append(Value(-number if negative else number, unit, year and not negative))
     return found
+
+
+def _text_leads(answer: str, gold: str) -> bool:
+    """A words-only gold is the whole answer, or its start up to where the explanation begins."""
+    def clean(text: str) -> str:
+        text = re.sub(r"\s+", " ", _ASIDE.sub(" ", text.lower())).strip().strip("\"'").strip()
+        return re.sub(r"^the ", "", text).rstrip(".!")
+    stated, expected = clean(answer), clean(gold)
+    if not expected or not stated.startswith(expected):
+        return False
+    rest = stated[len(expected):]
+    return not rest or _TEXT_END.match(rest) is not None
 
 
 def leading_value(answer: str) -> str:

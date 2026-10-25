@@ -44,6 +44,7 @@ def test_a_delivered_observation_must_name_its_text_and_turn(row):
     ("ok", Score(0.0, False, "p"), "4", True, ("excluded", "invalid_score")),
     ("ok", None, "4", True, ("excluded", "invalid_score")),
     ("infra_failure", Score(0.0, True, "p"), None, True, ("excluded", "infra_failure")),
+    ("policy_failure", Score(0.0, True, "p"), None, True, ("excluded", "policy_failure")),   # not the model's zero
 ])
 def test_reward_eligibility_table(status, score, answer, complete, expected):
     record = EpisodeRecord(episode_id="e", task="t", task_version="1", question_id="q", status=status, score=score,

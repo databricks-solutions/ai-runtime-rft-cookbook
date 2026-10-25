@@ -54,11 +54,11 @@ def test_the_shipped_recipes_resolve():
     assert recipe["train"]["algorithm"] == "grpo" and recipe["compute"]["trainer_gpus"] == 4
 
 
-def record(qid, sample, value, *, status="ok", valid=True, split="eval", components=None):
+def record(qid, sample, value, *, status="ok", valid=True, split="eval", components=None, judge=None):
     return EpisodeRecord(episode_id=f"{qid}_{sample}", task="toy", task_version="1", question_id=qid, split=split,
                          sample_index=sample, status=status, termination=Termination("answer", answer="x"),
-                         score=None if status == "infra_failure" else Score(value, valid, "p",
-                                                                             components=components or {}))
+                         score=None if status != "ok" else Score(value, valid, "p", components=components or {},
+                                                                 judge=judge))
 
 
 PLAN = {"task": "toy", "task_version": "1", "rows_sha256": "h", "samples": 2, "ids": ["a", "b"], "model": {}}
@@ -71,6 +71,19 @@ def test_completeness_counts_every_kind_of_gap():
     assert not head["complete"] and head["score_mean_valid"] == 0.5 and head["score_mean_strict"] == 0.25
     full = summarize([record(q, k, 1.0) for q in "ab" for k in range(2)], PLAN)["headline"]
     assert full["complete"] and full["score_mean_strict"] == 1.0
+    driver = summarize([record("a", 0, 1.0), record("a", 1, 1.0), record("b", 0, 1.0),
+                        record("b", 1, 0.0, status="policy_failure")], PLAN)["headline"]
+    assert driver["policy_failures"] == 1 and driver["valid"] == 3 and not driver["complete"]
+
+
+def test_a_fallback_judges_label_enters_the_headline_only_if_its_policy_allows():
+    def run(headline):
+        judge = {"model": "judge-b", "fallback": True, "headline": headline}
+        return summarize([record("a", 0, 1.0), record("a", 1, 1.0), record("b", 0, 1.0),
+                          record("b", 1, 1.0, judge=judge)], PLAN)["headline"]
+    allowed, withheld = run(True), run(False)
+    assert allowed["complete"] and allowed["valid"] == 4 and allowed["fallback_labels"] == 1
+    assert not withheld["complete"] and withheld["valid"] == 3 and withheld["fallback_withheld"] == 1
 
 
 def test_paired_comparison_and_leakage(tmp_path):

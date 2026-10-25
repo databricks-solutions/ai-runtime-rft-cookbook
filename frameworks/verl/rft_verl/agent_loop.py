@@ -132,7 +132,7 @@ class CookbookAgentLoop(ToolAgentLoop):
             excluded = str(error)
         record = episode.policy.finalize()
         ground_truth = (kwargs.get("reward_model") or {}).get("ground_truth")
-        if record.status != "infra_failure":
+        if record.status == "ok":   # a failed episode is never scored
             await score_episode(self.task.scorer, record, ground_truth, metadata)
         record.collection = [self._attest(record, episode.agent_data)]
         if self.sink:

@@ -7,10 +7,10 @@ fit in the context. The rules (docs/architecture.md, "Episode format"):
 
 - calls in one turn are considered in order, up to the per-turn limit; the rest are skipped,
   a terminal call beyond the limit included;
-- the first terminal call within the limit ends the episode; every other call in that turn is
-  skipped, since its result could never reach the model;
-- a malformed call (parse error, unknown tool, arguments not a JSON object) is answered with a
-  tool error and counts toward the limits;
+- the first well-formed terminal call within the limit ends the episode; every other call in
+  that turn is skipped, since its result could never reach the model;
+- a malformed call (parse error, unknown tool, arguments not a JSON object), a terminal one
+  included, is answered with a tool error and counts toward the limits;
 - a length stop ends the episode without an answer, even if a call was parsed from the cut text;
   an empty turn ends it without an answer;
 - a turn at the turn limit that still calls tools ends the episode with `max_turns`;
@@ -174,7 +174,8 @@ class EpisodePolicy:
 
         rule = self.task.terminal
         if rule.kind == "tool":
-            terminal = next((i for i, c in enumerate(considered) if c.name == rule.tool), None)
+            terminal = next((i for i, c in enumerate(considered)
+                             if c.name == rule.tool and _arguments(c)[1] is None), None)
             if terminal is not None:
                 skip_all("terminal_in_turn", keep=terminal)
                 considered[terminal].status = "ok"
@@ -206,17 +207,11 @@ class EpisodePolicy:
         return TurnDecision(calls=planned)
 
     def _validate(self, call: ToolCallRecord) -> tuple[dict[str, Any] | None, str | None]:
-        if call.parse_error:
-            return None, f"Error: the call to '{call.name}' could not be parsed: {call.parse_error}"
-        if call.name not in self.task.tools:
+        terminal = self.task.terminal
+        known = call.name in self.task.tools or (terminal.kind == "tool" and call.name == terminal.tool)
+        if not call.parse_error and not known:
             return None, f"Error: unknown tool '{call.name}'. Available tools: {self.task.tools.names()}"
-        try:
-            arguments = json.loads(call.arguments) if call.arguments.strip() else {}
-        except json.JSONDecodeError as error:
-            return None, f"Error: arguments for '{call.name}' are not valid JSON: {error}"
-        if not isinstance(arguments, dict):
-            return None, f"Error: arguments for '{call.name}' must be a JSON object"
-        return arguments, None
+        return _arguments(call)
 
     def observation(self, planned: PlannedCall, result: ToolResult | None) -> str:
         """Record a call's outcome; returns the observation text to place in the context."""
@@ -274,3 +269,16 @@ class EpisodePolicy:
         self.record.metadata["tool_calls_used"] = self.calls_used
         self.record.validate()
         return self.record
+
+
+def _arguments(call: ToolCallRecord) -> tuple[dict[str, Any] | None, str | None]:
+    """A call's arguments as a JSON object, or the tool error that answers a malformed call."""
+    if call.parse_error:
+        return None, f"Error: the call to '{call.name}' could not be parsed: {call.parse_error}"
+    try:
+        arguments = json.loads(call.arguments) if call.arguments.strip() else {}
+    except json.JSONDecodeError as error:
+        return None, f"Error: arguments for '{call.name}' are not valid JSON: {error}"
+    if not isinstance(arguments, dict):
+        return None, f"Error: arguments for '{call.name}' must be a JSON object"
+    return arguments, None

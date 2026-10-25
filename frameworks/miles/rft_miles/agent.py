@@ -80,7 +80,7 @@ async def _episode(base_url: str, request_kwargs: dict[str, Any], metadata: dict
                               seed=request_kwargs.get("seed"), timeout_s=float(config["request_timeout_s"]))
     record = await run_episode(task, client, row, counter=counter, model=config["model"],
                                settings={"driver": "miles", "parser": config["tool_parser"]})
-    if record.status != "infra_failure":
+    if record.status == "ok":   # a failed episode is never scored
         await score_episode(task.scorer, record, row["ground_truth"], row.get("metadata"))
     if sink:
         sink.write(record)

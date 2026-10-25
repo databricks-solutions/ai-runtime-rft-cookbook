@@ -196,6 +196,34 @@ def test_strict_compute_has_no_network_and_cannot_see_data(tmp_path, monkeypatch
     assert "do-not-leak" not in PythonSandbox("strict").run("import os\nprint(os.environ)").text
 
 
+def test_a_masked_directory_that_holds_the_interpreter_is_masked_all_but_the_interpreter(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    venv = home / "user" / "project" / ".venv"
+    (venv / "bin").mkdir(parents=True)
+    monkeypatch.setattr(sandbox, "MASKED", (str(home), str(tmp_path / "absent")))
+    monkeypatch.setattr(sandbox.sys, "prefix", str(venv))
+    monkeypatch.setattr(sandbox.sys, "executable", str(venv / "bin" / "python"))
+    masked, interpreter = sandbox._masked_dirs()
+    assert masked == [str(home)] and interpreter == [str(venv)]   # the project around the venv stays hidden
+
+
+@pytest.mark.skipif(not sandbox.bwrap_available(), reason="needs bubblewrap and user namespaces")
+def test_strict_compute_cannot_see_the_checkout_beside_its_interpreter():
+    checkout = Path(__file__).resolve().parents[1]
+    seen = PythonSandbox("strict", preload=()).run(f"import os\nprint(os.path.exists({str(checkout / 'tests')!r}))")
+    assert seen.text.endswith("False"), seen.text
+
+
+@pytest.mark.parametrize("level", ["best_effort", "off"])
+def test_output_past_the_read_limit_kills_the_child_and_ordinary_output_is_clipped(level, monkeypatch):
+    monkeypatch.setattr(sandbox, "bwrap_available", lambda: False)
+    box = PythonSandbox(level, preload=(), max_output=100)
+    flood = box.run(f"import os\nfor _ in range(64): os.write(1, b'y' * {sandbox.READ_LIMIT // 32})")
+    assert flood.status == "error" and "more than" in flood.text
+    clipped = box.run("print('x' * 10_000)")
+    assert clipped.status == "ok" and clipped.text.endswith("(output truncated)") and len(clipped.text) < 200
+
+
 def test_strict_without_bubblewrap_runs_nothing(monkeypatch):
     monkeypatch.setattr(sandbox, "bwrap_available", lambda: False)
     with pytest.raises(ToolInfraError, match="unavailable"):
@@ -268,4 +296,4 @@ def test_the_task_carries_the_measured_budgets_and_needs_a_judge_only_to_score()
     policy = officeqa.judge_policy({"models": ["system.ai.glm-5-3-flash"], "max_model_len": 65536, "max_tokens": 4096})
     assert policy.max_prompt_tokens == 65536 - 4096 - 64 and policy.deadline_s == 600 and policy.retries == 2
     assert load_task("officeqa", resources={"judge": {"id": "glm", "models": ["m"]}}).scorer.policy == \
-        "officeqa/path-report-v1+glm"
+        "officeqa/path-report-v2+glm"

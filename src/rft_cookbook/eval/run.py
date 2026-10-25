@@ -148,7 +148,7 @@ async def run_plan(task, client, counter, rows: list[dict[str, Any]], *, samples
         async with gate:
             record = await run_episode(task, episode_client, row, counter=counter, sample_index=sample,
                                        episode_id=f"{row['id']}_{sample}", model=model_identity, settings=settings)
-            if record.status != "infra_failure":
+            if record.status == "ok":   # a failed episode is never scored
                 await score_episode(task.scorer, record, row["ground_truth"], row.get("metadata"))
             sink.write(record)
         done.append(record.score.value if record.score and record.score.valid else None)

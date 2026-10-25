@@ -86,7 +86,7 @@ Recipes override budgets, scorer policy and data splits; they do not change tool
   length | policy_error | infra_error`), final answer, terminal turn.
 - **score:** value, components, `valid`, scorer policy id, judge identity, verdict and attempts.
 - **status:** `ok | policy_failure | infra_failure`, derived from the termination
-  (`policy_error` is a driver that stopped without a decision). Infrastructure failures are never
+  (`policy_error` is a driver that stopped without a decision). Neither failure is scored or
   converted into a learning signal; the scoring policy decides between retry and exclusion.
 - **collection** (training only): a list of **attestations**, one per framework sample made
   from this episode. verl produces one sample per episode; miles' session server can produce
@@ -104,7 +104,7 @@ Reward eligibility is decided per attestation:
 | terminal answer present and its complete span retained | the scorer's reward |
 | no answer (policy failure: max turns, empty or length stop), retained | a valid zero, if the scorer policy says so |
 | reward refers to a terminal answer that collection truncated or dropped | invalid; the sample is excluded |
-| `score.valid` is false or `status` is `infra_failure` | invalid; the sample is excluded |
+| `score.valid` is false, or `status` is `infra_failure` or `policy_failure` (the driver stopped without a decision) | invalid; the sample is excluded |
 
 Neither framework interprets an invalid reward on its own; the adapter must keep invalid
 samples out of the update (zero loss mask or removal) and count them.
@@ -114,9 +114,10 @@ driver's parsed calls and the driver's token accounting; it does not tokenize.
 
 - Tool calls in one turn run in order, up to the per-turn limit; the rest are recorded as
   `skipped`. A terminal call beyond the limit is `skipped` too.
-- The first terminal call within the limit ends the episode; every other call in that turn is
-  `skipped`, since its result could never reach the model.
-- A malformed call is returned to the model as a tool error and counts toward the limit.
+- The first well-formed terminal call within the limit ends the episode; every other call in
+  that turn is `skipped`, since its result could never reach the model.
+- A malformed call, a terminal one included, is returned to the model as a tool error and counts
+  toward the limit.
 - A length stop ends the episode without an answer, even if a terminal call was parsed from
   the cut-off text. An empty response ends the episode without an answer.
 - Budgets are separate: total context tokens (prompt plus everything appended), cumulative

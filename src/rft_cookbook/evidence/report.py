@@ -1,14 +1,16 @@
 """Evidence shared by every task: completeness, accounting, leakage and paired comparison.
 
 `summarize` checks an evaluation against its frozen plan: every planned (question, sample) is
-present exactly once and either scored validly or explicitly an infrastructure failure.
-Missing, invalid and failed episodes are counted, never silently dropped; the strict mean
-counts them as zero. Results are also reported per split (e.g. held-out questions and training
-probes). `compare_runs` pairs two evaluations of the same plan by question: bootstrap intervals
-resample questions (several samples of one question are not independent), and McNemar's exact
-test is reported only with one binary sample per question. Pairing uses the valid samples only,
-so two evaluations are comparable only when both are complete. `parity` pairs an evaluation with
-recorded per-question results of an earlier one, the same way.
+present exactly once and scored validly. Missing, invalid and failed episodes (an infrastructure
+failure, or a driver that stopped without a decision) are counted, never silently dropped, and
+leave the evaluation incomplete; the strict mean counts them as zero. So does a label from a
+fallback judge whose policy keeps such labels out of the headline. Results are also reported per
+split (e.g. held-out questions and training probes). `compare_runs` pairs two evaluations of the
+same plan by question: bootstrap intervals resample questions (several samples of one question
+are not independent), and McNemar's exact test is reported only with one binary sample per
+question. Pairing uses the valid samples only, so two evaluations are comparable only when both
+are complete. `parity` pairs an evaluation with recorded per-question results of an earlier one,
+the same way.
 """
 from __future__ import annotations
 
@@ -32,10 +34,12 @@ def summarize(records: list[EpisodeRecord], plan: dict[str, Any], *, damaged: in
     missing = sorted(planned - set(seen))
     unplanned = sorted(set(seen) - planned)
     duplicates = sorted(k for k, n in seen.items() if n > 1)
-    valid = [r for k, r in by_key.items() if k in planned and r.status != "infra_failure" and r.score and r.score.valid]
+    scored = [r for k, r in by_key.items() if k in planned and r.status == "ok" and r.score and r.score.valid]
+    valid = [r for r in scored if (r.score.judge or {}).get("headline", True)]
+    withheld = [r for r in scored if not (r.score.judge or {}).get("headline", True)]   # a fallback judge's label
     infra = [r for k, r in by_key.items() if k in planned and r.status == "infra_failure"]
-    invalid = [r for k, r in by_key.items() if k in planned and r.status != "infra_failure"
-               and not (r.score and r.score.valid)]
+    driver = [r for k, r in by_key.items() if k in planned and r.status == "policy_failure"]
+    invalid = [r for k, r in by_key.items() if k in planned and r.status == "ok" and not (r.score and r.score.valid)]
     per_question: dict[str, list[float]] = defaultdict(list)
     for r in valid:
         per_question[r.question_id].append(r.score.value)
@@ -48,9 +52,11 @@ def summarize(records: list[EpisodeRecord], plan: dict[str, Any], *, damaged: in
     strict_total = sum(r.score.value for r in valid)
     headline = {
         "planned": len(planned), "present": len(planned & set(seen)), "valid": len(valid),
-        "missing": len(missing), "infra_failures": len(infra), "invalid_scores": len(invalid),
+        "missing": len(missing), "infra_failures": len(infra), "policy_failures": len(driver),
+        "invalid_scores": len(invalid), "fallback_withheld": len(withheld),
+        "fallback_labels": sum(bool((r.score.judge or {}).get("fallback")) for r in scored),
         "duplicates": len(duplicates), "unplanned": len(unplanned), "damaged_lines": damaged,
-        "complete": not (missing or infra or invalid or duplicates or unplanned or damaged),
+        "complete": not (missing or infra or driver or invalid or withheld or duplicates or unplanned or damaged),
         "score_mean_valid": strict_total / len(valid) if valid else None,
         "score_mean_strict": strict_total / len(planned) if planned else None,
     }

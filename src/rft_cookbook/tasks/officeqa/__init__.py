@@ -152,7 +152,7 @@ class TaskScorer:
 
     def __init__(self, config: dict[str, Any] | None):
         self.config = config
-        self.policy = f"officeqa/path-report-v1+{judge_policy(config).id}" if config else "officeqa/path-report-v1"
+        self.policy = f"officeqa/path-report-v2+{judge_policy(config).id}" if config else "officeqa/path-report-v2"
         self._scorer: OfficeQAScorer | None = None
         self._lock = threading.Lock()
 
