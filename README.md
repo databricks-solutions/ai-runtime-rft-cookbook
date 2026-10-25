@@ -67,6 +67,12 @@ jobs list it). All stages of one run use the same run id; each finds its inputs 
 under the run's directory. Inside the job the launcher resolves the recipe from the code snapshot,
 so a recipe change applies to the next job submitted.
 
+The `compare` stage also writes the run's qualification record (`qualification.json` in the run's
+directory): the code, recipe, image, model, data and evaluation it ran with, the checks it passed,
+and the status that follows (`measured`, `smoke-tested` or `failed`). Pass
+`env_variables.RFT_CODE_COMMIT=<commit>` and `env_variables.RFT_IMAGE=<image>` to every stage so the
+record names them; the code is identified by a hash of its sources in any case.
+
 Recipe values can be overridden per run, as one shell-quoted list:
 `env_variables.RFT_SET="train.total_training_steps=3 train.seed=7"`. Use the same overrides for
 every stage of the run. `train` resumes from the run's newest published checkpoint: to continue

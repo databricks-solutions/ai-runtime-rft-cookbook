@@ -162,13 +162,22 @@ def eval_(recipe, paths, rendered) -> None:
 
 
 def compare(recipe, paths, rendered) -> None:
+    """The paired comparison with the baseline, and the run's qualification record."""
+    from rft_cookbook.evidence import qualification
     from rft_cookbook.evidence.report import compare_runs
+    from rft_cookbook.recipe import load_recipe, recipes_root
 
     exported = _exported(paths)
     report = compare_runs(paths["baseline_dir"], f"{paths['eval_dir']}/step_{exported['step']}",
                           train_rows=paths["train_rows"], probe_splits=tuple(recipe["eval"].get("probe_splits") or ()))
     _write(Path(paths["run_dir"]) / "comparison.json", report)
     print(json.dumps(report["summary"], indent=1))
+    root = recipes_root()
+    record = qualification.record(recipe, paths, report, checked_in=load_recipe(recipe["name"], root=root),
+                                  code_root=root.parent)
+    _write(Path(paths["run_dir"]) / "qualification.json", record)
+    print(f"[compare] qualification: {record['status']}; "
+          + ", ".join(f"{c['name']} {'ok' if c['passed'] else 'FAILED'}" for c in record["checks"]))
 
 
 def request_abort(abort_file: str | None, reason: str) -> None:

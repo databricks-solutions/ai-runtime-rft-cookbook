@@ -309,8 +309,11 @@ Shared by every agentic task (`rft_cookbook.evidence`):
 A recipe's status is **measured**, **smoke-tested** or **untested**, tied to a qualification
 record. Changing the task, agent policy, scorer, adapter, launcher or image invalidates it.
 Results produced by earlier implementations are linked as history, not as the recipe's status.
-No recipe has a record yet: until then the README calls a recipe **done** when its GPU runs
-passed (its header lists them), and **untested** otherwise.
+The `compare` stage writes the record (`rft_cookbook.evidence.qualification`, the run's
+`qualification.json`): **measured** when every check passed on the recipe as checked in (a training
+or evaluation seed, the baseline run and the stages may differ), **smoke-tested** when they passed
+on a reduced run. No recipe has a record yet: until then the README calls a recipe **done** when its
+GPU runs passed (its header lists them), and **untested** otherwise.
 
 Comparisons across frameworks are recipe comparisons: each reports its paired gain over its own
 baseline, with compute and judge cost, unless model, data, budgets, judge policy, evaluation
