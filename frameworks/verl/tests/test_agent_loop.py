@@ -249,3 +249,17 @@ def test_failures_in_a_row_ask_the_launcher_to_stop(tokenizer, tokenizer_dir, tm
     guard = streak(2)
     run(lambda: _make_loop(tokenizer, tokenizer_dir, ScriptedServer(tokenizer, ["\\boxed{4}"]), tmp_path, entry=entry))
     assert guard.streak == 0 and not abort.exists()   # a decided episode ends the streak
+
+
+def test_a_list_of_golds_reaches_the_scorer_as_a_list():
+    """Agentic search scores against an answer and its aliases: the parquet keeps them as JSON."""
+    from rft_verl.agent_loop import row_ground_truth
+
+    task = load_task("search")
+    row = {"id": "2hop__1_2", "split": "train", "messages": [{"role": "user", "content": "Question: Q?"}],
+           "ground_truth": ["London", "London, England"], "metadata": {"hops": 2}}
+    verl_row = next(to_verl_rows(task, [row]))
+    assert row_ground_truth(verl_row) == ["London", "London, England"]
+    math = next(to_verl_rows(load_task("math"), [{**row, "ground_truth": "4"}]))
+    assert row_ground_truth(math) == "4" and math["reward_model"]["ground_truth"] == "4"
+    assert row_ground_truth({"reward_model": {"ground_truth": "4"}}) == "4"   # parquet without the JSON copy

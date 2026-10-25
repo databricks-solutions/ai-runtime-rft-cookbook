@@ -30,8 +30,10 @@ def to_verl_rows(task, rows):
             "ability": task.name,
             "reward_model": {"style": "rule", "ground_truth": json.dumps(row["ground_truth"])
                              if not isinstance(row["ground_truth"], str) else row["ground_truth"]},
+            # the ground truth as the task wrote it (a list of golds stays a list); reward_model holds text
             "extra_info": {"id": str(row["id"]), "split": row["split"] or "", "prompt_sha256": prompt_sha,
-                           "metadata_json": json.dumps(row.get("metadata") or {}, sort_keys=True)},
+                           "metadata_json": json.dumps(row.get("metadata") or {}, sort_keys=True),
+                           "ground_truth_json": json.dumps(row["ground_truth"])},
         }
 
 

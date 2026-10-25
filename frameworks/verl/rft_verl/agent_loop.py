@@ -59,6 +59,15 @@ def _task(name: str, budgets_json: str, resources_json: str = "null") -> AgentTa
     return load_task(name, json.loads(resources_json), **json.loads(budgets_json))
 
 
+
+def row_ground_truth(kwargs: dict) -> Any:
+    """The row's ground truth as the task wrote it: `extra_info.ground_truth_json` (rft_verl.data), else
+    verl's `reward_model.ground_truth` text (parquet written before the JSON copy was kept)."""
+    extra = kwargs.get("extra_info") or {}
+    if extra.get("ground_truth_json") is not None:
+        return json.loads(extra["ground_truth_json"])
+    return (kwargs.get("reward_model") or {}).get("ground_truth")
+
 class _Episode:
     def __init__(self, task: AgentTask, policy: EpisodePolicy, context: ToolContext, sample_id: str):
         self.task, self.policy, self.context, self.sample_id = task, policy, context, sample_id
@@ -141,7 +150,7 @@ class CookbookAgentLoop(ToolAgentLoop):
         except EpisodeExcluded as error:   # decided before the first turn: recorded and counted below
             excluded = str(error)
         record = episode.policy.finalize()
-        ground_truth = (kwargs.get("reward_model") or {}).get("ground_truth")
+        ground_truth = row_ground_truth(kwargs)
         if record.status == "ok":   # a failed episode is never scored
             await self.guard.score(self.task.scorer, record, ground_truth, metadata)
         record.collection = [self._attest(record, episode.agent_data)]
