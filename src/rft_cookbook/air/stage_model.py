@@ -17,7 +17,8 @@ keeps two staging jobs from writing the same directory at once. It is created ex
 then read back, since a volume shared by several nodes may let two creations both succeed (the
 last writer's token is then what both read, and the other job stops); it is rewritten after every
 file (a volume ignores `utime`: a file's time is when it was last written), and a lock not
-rewritten for STAGE_LOCK_STALE_H is taken over.
+rewritten for STAGE_LOCK_STALE_H is taken over. A job that finds the lock held waits for it (up to
+STAGE_LOCK_WAIT_H), then finds the revision staged by the other job, or stages what is missing.
 
     python -m rft_cookbook.air.stage_model --model-id Qwen/Qwen3.5-2B --revision <sha> --dest <dir>
 """
@@ -43,6 +44,8 @@ COPY_BUF = 32 * 1024 * 1024   # 32 MiB sequential writes to the FUSE mount
 STAGED, PROGRESS, LOCK = "STAGED.json", ".staging.json", ".staging.lock"
 LOCK_STALE_S = float(os.environ.get("STAGE_LOCK_STALE_H", "12")) * 3600
 LOCK_SETTLE_S = 2.0   # before the lock is read back
+LOCK_WAIT_S = float(os.environ.get("STAGE_LOCK_WAIT_H", "2")) * 3600   # for another job's staging to finish
+LOCK_POLL_S = 30.0
 
 
 def pick_scratch(explicit: str | None = None) -> str:
@@ -118,8 +121,9 @@ def write_json(path: str, obj: dict) -> None:
     os.replace(tmp, path)
 
 
-def take_lock(model_dir: str) -> tuple[str, str]:
-    """`(lock path, this job's token)`; exits if another staging job holds the lock."""
+def take_lock(model_dir: str) -> tuple[str, str] | None:
+    """`(lock path, this job's token)`, or None once another staging job that held the lock has let
+    it go (look again: it may have staged the model). Waits for it up to STAGE_LOCK_WAIT_H, then exits."""
     lock = os.path.join(model_dir, LOCK)
     token = (f"host={socket.gethostname()} pid={os.getpid()} since={time.strftime('%Y-%m-%dT%H:%M:%S%z')} "
              f"id={uuid.uuid4().hex}")
@@ -128,13 +132,12 @@ def take_lock(model_dir: str) -> tuple[str, str]:
             fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
         except FileExistsError:
             try:
-                age = time.time() - os.path.getmtime(lock)
+                age = max(0.0, time.time() - os.path.getmtime(lock))   # the volume's clock may run ahead
                 holder = open(lock).read().strip()
             except FileNotFoundError:
                 continue   # released meanwhile
             if age < LOCK_STALE_S:
-                sys.exit(f"FATAL: {lock} is held ({holder}, renewed {age / 60:.0f} min ago): another staging job "
-                         "is writing this directory. Delete the lock only if none is running.")
+                return _wait_for_release(lock, holder)
             print(f"WARNING: taking over a stale lock ({age / 3600:.1f} h old): {lock}")
             try:   # whichever job renames it first takes over; the other finds a fresh lock
                 os.replace(lock, f"{lock}.stale-{uuid.uuid4().hex[:8]}")
@@ -144,10 +147,25 @@ def take_lock(model_dir: str) -> tuple[str, str]:
         with os.fdopen(fd, "w") as fh:
             fh.write(token)
         time.sleep(LOCK_SETTLE_S)
-        if _lock_holder(lock) != token:
-            sys.exit(f"FATAL: another staging job took {lock} at the same time ({_lock_holder(lock)})")
+        holder = _lock_holder(lock)
+        if holder != token:   # another job created it at the same time and wrote last: it holds it
+            return _wait_for_release(lock, holder or "")
         return lock, token
     sys.exit(f"FATAL: could not take {lock}")
+
+
+def _wait_for_release(lock: str, holder: str) -> None:
+    print(f"waiting: {lock} is held ({holder}): another staging job is writing this directory")
+    deadline = time.time() + LOCK_WAIT_S
+    while time.time() < deadline:
+        time.sleep(LOCK_POLL_S)
+        try:
+            if time.time() - os.path.getmtime(lock) >= LOCK_STALE_S:
+                return None   # its job stopped renewing it: looked at again, it is taken over
+        except FileNotFoundError:
+            return None
+    sys.exit(f"FATAL: {lock} is still held ({_lock_holder(lock)}) after {LOCK_WAIT_S / 3600:.1f} h. "
+             "Delete the lock only if no staging job is running.")
 
 
 def _lock_holder(lock: str) -> str | None:
@@ -211,7 +229,13 @@ def stage(MODEL_ID: str, MODEL_REVISION: str, MODEL_DIR: str, scratch_dir: str |
         print(f"already staged: {MODEL_ID}@{commit} ({STAGED}) -- nothing to do")
         return read_json(os.path.join(MODEL_DIR, STAGED))
 
-    lock, token = take_lock(MODEL_DIR)
+    taken = take_lock(MODEL_DIR)
+    while taken is None:   # another job held the lock: it may have staged this revision meanwhile
+        if read_json(os.path.join(MODEL_DIR, STAGED)).get("revision") == commit:
+            print(f"already staged by another job: {MODEL_ID}@{commit} ({STAGED})")
+            return read_json(os.path.join(MODEL_DIR, STAGED))
+        taken = take_lock(MODEL_DIR)
+    lock, token = taken
     try:
         siblings = sorted((s for s in info.siblings if wanted(s.rfilename)
                            and not (tokenizer_only and s.rfilename.endswith(WEIGHT_SUFFIXES))),
