@@ -12,7 +12,7 @@ Design: [docs/architecture.md](docs/architecture.md).
 
 | Task | Framework | Model | Recipe | Status |
 |---|---|---|---|---|
-| Math with a calculator (quickstart) | verl 0.10.0.dev (8718ca30) | Qwen3.5-2B, 1×8 H100 | [`math/verl/qwen3.5-2b_h100x8`](recipes/math/verl/qwen3.5-2b_h100x8/recipe.yaml) | measured (run math-2b-02, 2026-10-25, [record](docs/records/math-2b-02/qualification.json)): every stage passed on the committed code; MATH-500 61.8% → 62.0%, no change, as expected for a plumbing recipe |
+| Math with a calculator (quickstart) | verl 0.10.0.dev (8718ca30) | Qwen3.5-2B, 1×8 H100 | [`math/verl/qwen3.5-2b_h100x8`](recipes/math/verl/qwen3.5-2b_h100x8/recipe.yaml) | measured (run math-2b-02, 2026-10-25, [record](docs/records/math-2b-02/qualification.json)): every stage passed on the committed code; MATH-500 61.8% → 62.0%, no change, as expected for a plumbing recipe; the recipe runner's GPU smoke (`--smoke`) is smoke-tested on it (run math-2b-smoke-01, [record](docs/records/math-2b-smoke-01/qualification.json)) |
 | OfficeQA | verl 0.10.0.dev (8718ca30) | Qwen3.5-35B-A3B, 2×8 H100 (8 train, 8 serve), hosted GLM-5.3-Flash judge | [`officeqa/verl/qwen3.5-35b-a3b_h100x16`](recipes/officeqa/verl/qwen3.5-35b-a3b_h100x16/recipe.yaml) | superseded (OfficeQA continues on Qwen3.6, the rows below; not rerun on the final code): parity passed (with the reference's tool-schema view); two training seeds, held-out supported pass@1 15.1% → 22.1% (+7.0 points, 95% interval [+1.2, +13.4]) and → 20.9% (+5.8 [0.0, +12.2]) |
 | Math with a calculator (technical smoke) | miles (upstream v0.1.3) | GLM-5.3-Flash 4-layer slice, 1×8 B300 | [`math/miles/glm-5.3-flash-4layer_b300x8`](recipes/math/miles/glm-5.3-flash-4layer_b300x8/recipe.yaml) | done: GPU smoke passed (2 rollouts, 2 updates, checkpoint published) |
 | OfficeQA | verl 0.10.0.dev (8718ca30) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), hosted GLM-5.3-Flash judge | [`officeqa/verl/qwen3.6-35b-a3b_h100x16`](recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16/recipe.yaml) | measured (the reference OfficeQA recipe; run oqa-q36-verl-03, 2026-10-25, [record](docs/records/oqa-q36-verl-03/qualification.json)): 100 updates, held-out supported pass@1 20.3% → 23.8% (+3.5 points, 95% interval [−2.9, +9.9]); two earlier runs +2.9 and +0.0: about three points, which no single run resolves |
@@ -97,7 +97,7 @@ a chain: a job that succeeded is reused and one that still runs is waited for.
 ## Testing
 
 ```bash
-pip install --no-deps -e . && pip install pytest pyyaml sympy pylatexenc
+pip install --no-deps -e . && pip install pytest pyyaml regex sympy pylatexenc openai
 pytest tests                          # core: no RL framework needed
 pytest frameworks/verl/tests          # needs the pinned verl importable (CPU is enough)
 pip install --no-deps -e frameworks/miles && pip install transformers openai
