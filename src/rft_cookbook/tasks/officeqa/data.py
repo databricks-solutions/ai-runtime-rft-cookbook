@@ -174,6 +174,10 @@ def download(scratch: Path) -> Path:
                                   local_dir=scratch / "officeqa"))
 
 
+def prepare_recipe(recipe: dict[str, Any], out: Path, *, scratch) -> dict[str, Any]:
+    return prepare(out, scratch=scratch())
+
+
 def prepare(out: Path, *, scratch: Path, source: Path | None = None) -> dict[str, Any]:
     """Build everything in `scratch` (local disk), check it against the lock, then copy closed files to `out`."""
     source = source or download(scratch)

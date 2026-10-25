@@ -19,7 +19,7 @@ Design: [docs/architecture.md](docs/architecture.md).
 | OfficeQA | miles (upstream v0.1.3) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), matched to the verl recipe and compared with its baseline | [`officeqa/miles/qwen3.6-35b-a3b_h100x16`](recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16/recipe.yaml) | measured (run oqa-q36-miles-03, 2026-10-25, [record](docs/records/oqa-q36-miles-03/qualification.json)): 100 updates, held-out supported pass@1 20.3% → 23.8% (+3.5 points, 95% interval [−3.5, +11.6]) against the measured verl run's baseline, where verl also reached 23.8%; an earlier run with the MoE load-balancing loss on (verl has it off) regressed to 11.0% |
 | Math with a calculator (training trial) | miles (upstream v0.1.3) | GLM-5.3-Flash, 4×8 B300 | [`math/miles/glm-5.3-flash_b300x32`](recipes/math/miles/glm-5.3-flash_b300x32/recipe.yaml) | done: trained 3 updates and published a full resumable checkpoint (4.8 TB) |
 | OfficeQA (long-context measurement) | miles (upstream v0.1.3) | GLM-5.3-Flash, 8×8 B300 | [`officeqa/miles/glm-5.3-flash_b300x64`](recipes/officeqa/miles/glm-5.3-flash_b300x64/recipe.yaml) | done, accepted without a completed run here: the full model trains at 32 GPUs (row above) and has trained on OfficeQA before; the two 64-GPU attempts here stopped in the first update (see the recipe header) |
-| Agentic search | verl | Qwen3.6-35B-A3B | milestone 4 | not started |
+| Agentic search (MuSiQue, multi-hop) | verl 0.10.0.dev (8718ca30) | Qwen3.6-35B-A3B, 2×8 H100 (8 train, 8 serve), Databricks Vector Search, exact-match reward | [`search/verl/qwen3.6-35b-a3b_h100x16`](recipes/search/verl/qwen3.6-35b-a3b_h100x16/recipe.yaml) | untested: CPU tests pass; no GPU run yet. An earlier prototype (Qwen3.5-35B-A3B, verl 0.9, the same held-out questions and index) raised held-out exact match from 34.8% to 37.6% and 40.4% (two seeds) |
 
 Recipe paths are under `recipes/`. *measured*: a run of the recipe as checked in passed every check
 of its qualification record, which its `compare` stage writes (see
@@ -67,7 +67,8 @@ air run -f recipes/math/verl/qwen3.5-2b_h100x8/jobs/prep.yaml -p "$RFT_PROFILE" 
 ```
 
 `secrets.HF_TOKEN` is needed only by the stages that download from the Hugging Face Hub (their
-jobs list it). All stages of one run use the same run id; each finds its inputs on the volume
+jobs list it). Agentic search also needs `env_variables.RFT_VS_INDEX`, the Vector Search
+index its episodes search, in the stages that run episodes (`baseline_eval`, `train`, `eval`). All stages of one run use the same run id; each finds its inputs on the volume
 under the run's directory. Inside the job the launcher resolves the recipe from the code snapshot,
 so a recipe change applies to the next job submitted.
 

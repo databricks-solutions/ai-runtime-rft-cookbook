@@ -184,6 +184,16 @@ def scorer(judge, policy, count_tokens) -> OfficeQAScorer:
     return OfficeQAScorer(judge, policy, count_tokens)
 
 
+def run_resources(recipe: dict[str, Any], paths: dict[str, Any]) -> dict[str, Any]:
+    """The tool service (named after the run) over the run's corpus, the sandbox and the judge."""
+    scoring = recipe.get("scoring") or {}
+    out = {"tool_service": paths["run_id"], "data_dir": f"{paths['data_dir']}/corpus",
+           "sandbox": scoring.get("sandbox", "strict"), "compute": scoring.get("compute") or {}}
+    if scoring.get("judge"):
+        out["judge"] = {**scoring["judge"], "tokenizer": paths["judge_tokenizer_dir"]}
+    return out
+
+
 def task(resources: dict[str, Any] | None = None, **budget_overrides) -> AgentTask:
     from rft_cookbook.tools.service import RemoteToolSet
 

@@ -334,6 +334,7 @@ ai-runtime-rft-cookbook/
 │   ├── scoring/                  # base.py, judge.py
 │   ├── tasks/
 │   │   ├── officeqa/             # first agentic task
+│   │   ├── search/               # agentic search (MuSiQue, Vector Search)
 │   │   └── math/                 # quickstart
 │   ├── eval/                     # serve a checkpoint, run the harness, score, write evidence
 │   ├── evidence/
@@ -359,6 +360,7 @@ ai-runtime-rft-cookbook/
 │   ├── math/verl/qwen3.5-2b_h100x8/
 │   ├── math/miles/{glm-5.3-flash-4layer_b300x8, glm-5.3-flash_b300x32}/
 │   ├── officeqa/verl/{qwen3.5-35b-a3b_h100x16, qwen3.6-35b-a3b_h100x16}/
+│   ├── search/verl/qwen3.6-35b-a3b_h100x16/
 │   └── officeqa/miles/{qwen3.6-35b-a3b_h100x16, glm-5.3-flash_b300x64}/
 ├── docs/                         # records/<run id>/: published qualification records
 └── tests/
@@ -517,4 +519,16 @@ qualification record.
    of this model has needed.
 4. **Agentic search** as the second full task; generalize what OfficeQA hard-coded. Gateway spike
    on verl, compared with the native loop on a fixed checkpoint.
+   The task (`rft_cookbook.tasks.search`) answers MuSiQue multi-hop questions by searching a
+   Databricks Vector Search index of encyclopedia passages (semantic, hybrid and by-title
+   queries through the workspace REST API), ends with `<answer>...</answer>` in a turn without
+   tool calls, and is scored by exact match against the answer and its aliases (no judge). Its
+   500 held-out questions and its index are those of the earlier prototype, whose two seeds
+   raised held-out exact match from 34.8% to 37.6% and 40.4% on Qwen3.5-35B-A3B. A task now
+   brings its own stage hooks instead of cases in the shared stages: `run_resources(recipe,
+   paths)` (OfficeQA: tool service, corpus and judge; search: its index), `preflight(resources)`
+   (search: the index is ready), `prepare_recipe` in its data module, and a node-local tool
+   service only when its resources name one. A workspace resource a task's jobs ask for is a
+   placeholder like the volume root (`RFT_VS_INDEX`, filled from `site.env`), and the index name
+   is part of the task settings, so evaluations against different indexes do not compare.
 5. **slime**, then other frameworks on demand.

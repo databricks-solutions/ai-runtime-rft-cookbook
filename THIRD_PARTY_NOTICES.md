@@ -16,6 +16,7 @@ not legal advice and does not establish what any model or dataset may be used fo
 | `src/rft_cookbook/tasks/math/{grading,calculator,data}.py`, `tests/test_math_{grading,calculator}.py` | verl-on-air `usecases/math/` | Apache-2.0 |
 | `src/rft_cookbook/tasks/officeqa/answer_match.py` | the OfficeQA benchmark's `reward.py` (github.com/databricks/officeqa), by way of verl-on-air | Apache-2.0 |
 | `src/rft_cookbook/tasks/officeqa/{answer_check,path_report,scoring,corpus,chunker,html_table_parser,data,calibration}.py`, `tools.json`, `data.lock.json` | verl-on-air `usecases/officeqa/` | Apache-2.0 |
+| `src/rft_cookbook/tasks/search/{answer,retrieval,data}.py`, `heldout.ids` | verl-on-air `usecases/agentic-search/` (`reward.py`, `tool.py`, `prep_data.py`, `make_splits.py`, `splits/musique_test.ids`) | Apache-2.0 |
 | `src/rft_cookbook/tools/{sandbox,sandbox_child}.py` | verl-on-air `usecases/officeqa/sandbox.py` | Apache-2.0 |
 | `src/rft_cookbook/air/stage_model.py` | verl-on-air `engine/stage_model.py` | Apache-2.0 |
 | `frameworks/verl/image/*` | verl-on-air `docker/` | Apache-2.0 |

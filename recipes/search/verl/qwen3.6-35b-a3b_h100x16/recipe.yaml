@@ -1,0 +1,72 @@
+# Agentic search on verl: Qwen3.6-35B-A3B answers MuSiQue multi-hop questions by searching a
+# Databricks Vector Search index of encyclopedia passages, on 2 nodes of 8 H100s (8 train, 8 serve).
+# Exact-match reward, no judge. Held out: 500 MuSiQue validation questions, stratified by hop count
+# (rft_cookbook.tasks.search.data). The index is the workspace's: its jobs leave RFT_VS_INDEX for
+# site.env, and the corpus it was built from is described in rft_cookbook.tasks.search.
+# Status: untested (no GPU run of this recipe yet).
+# Settings carried over from the earlier prototype (verl-on-air, Qwen3.5-35B-A3B on verl 0.9, the same
+# held-out questions and index, 2026-09): 12 turns (8 cut off episodes still searching; the base
+# model gained 2 points from 8 to 12), a pure exact-match reward (a bonus for retrieving the answer
+# diluted it), 32 trajectories an update in groups of 16, lr 2e-6. Two training seeds raised held-out
+# exact match from 34.8% to 37.6% and 40.4%.
+extends: agentic/verl
+description: Agentic search (MuSiQue) on verl, Qwen3.6-35B-A3B, Databricks Vector Search.
+task: search
+stages: [prep, stage_model, baseline_eval, train, export, eval, compare]
+
+model:
+  id: Qwen/Qwen3.6-35B-A3B
+  revision: 995ad96eacd98c81ed38be0c5b274b04031597b0
+  tool_parser: qwen3_coder
+  reasoning_parser: null              # the harness splits </think> itself, as training does
+  serve_args: [--language-model-only]
+  chat_template_kwargs: {}
+
+data:
+  max_prompt_tokens: 2048             # with the task's 40,960-token response budget: a 43,008 context
+
+agent: {}                             # the task's budgets (12 turns, 4,096 tokens per turn)
+
+eval:
+  samples: 1                          # 532 episodes: one per question, paired by question (McNemar)
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  concurrency: 32
+  gpu_memory_utilization: 0.8
+  tensor_parallel: 8
+  request_timeout_s: 600
+  probe_splits: [probe]               # training questions evaluated on purpose, reported apart
+
+train:
+  rollout_n: 16
+  ppo_mini_batch_size: 2              # 32 trajectories an update
+  parameter_sync_step: 1
+  total_training_steps: 50            # the prototype's held-out gains came by its 20th update
+  lr: 2.0e-6
+  kl_loss_coef: 0.01                  # low-variance KL to the base model, as in the OfficeQA recipes
+  save_freq: 25
+  seed: 42
+
+strategy:
+  tp: 2
+  cp: 4
+  ep: 8
+  remove_padding: true
+  fused_kernels: true
+
+checkpoint:
+  location: volume                    # ~490 GB a save, saved where it is published
+  hash_files: false
+  keep: 2
+
+rollout:
+  tensor_parallel: 8
+
+compute:
+  nodes: 2
+  accelerator: GPU_8xH100
+  trainer_gpus: 8
+  rollout_gpus: 8
+  timeout_minutes: 240
+  train_timeout_minutes: 720

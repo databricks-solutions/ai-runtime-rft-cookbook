@@ -38,16 +38,29 @@ def _write(path: str | Path, value) -> None:
 
 
 def task_resources(recipe: dict[str, Any], paths: dict[str, Any]) -> dict[str, Any] | None:
-    """What the task needs at run time: its node-local tool service (named after the run), its data
-    and its judge. None for a task without tools or judge of its own."""
-    if recipe["task"] != "officeqa":
+    """What the task needs at run time (a node-local tool service named after the run, data, a
+    judge, an index): its module's `run_resources(recipe, paths)`. None for a task with none."""
+    hook = getattr(_task_module(recipe), "run_resources", None)
+    return hook(recipe, paths) if hook else None
+
+
+def start_resources(recipe: dict[str, Any], paths: dict[str, Any], resources: dict[str, Any] | None):
+    """Check the task's resources (its module's `preflight`, which raises when one is unusable) and
+    start its node-local tool service if it has one; returns the service process or None."""
+    from rft_cookbook.tools import service
+
+    check = getattr(_task_module(recipe), "preflight", None)
+    if resources and check:
+        print(f"[resources] {json.dumps(check(resources), default=str)}", flush=True)
+    if not (resources or {}).get("tool_service"):
         return None
-    scoring = recipe.get("scoring") or {}
-    out = {"tool_service": paths["run_id"], "data_dir": f"{paths['data_dir']}/corpus",
-           "sandbox": scoring.get("sandbox", "strict"), "compute": scoring.get("compute") or {}}
-    if scoring.get("judge"):
-        out["judge"] = {**scoring["judge"], "tokenizer": paths["judge_tokenizer_dir"]}
-    return out
+    return service.start(recipe["task"], resources, paths["run_id"])
+
+
+def _task_module(recipe, part: str = ""):
+    import importlib
+
+    return importlib.import_module(f"rft_cookbook.tasks.{recipe['task'].replace('-', '_')}{part}")
 
 
 def scratch(paths) -> Path:
@@ -66,18 +79,10 @@ def prepare_data(recipe, paths) -> Path:
     data_dir = Path(paths["data_dir"])
     if (data_dir / MANIFEST).exists():
         return data_dir
-    data = recipe.get("data") or {}
-    if recipe["task"] == "math":
-        from rft_cookbook.tasks.math.data import prepare
-
-        prepare(data_dir, levels=set(data["levels"]) if data.get("levels") else None,
-                train_limit=int(data.get("train_limit", 0)), eval_limit=int(data.get("eval_limit", 0)))
-    elif recipe["task"] == "officeqa":
-        from rft_cookbook.tasks.officeqa.data import prepare
-
-        prepare(data_dir, scratch=scratch(paths))
-    else:
-        raise SystemExit(f"no data preparation is wired for task {recipe['task']!r}")
+    module = _task_module(recipe, ".data")
+    if not hasattr(module, "prepare_recipe"):
+        raise SystemExit(f"task {recipe['task']!r} has no data preparation (prepare_recipe in its data module)")
+    module.prepare_recipe(recipe, data_dir, scratch=lambda: scratch(paths))
     return data_dir
 
 
@@ -110,7 +115,7 @@ def evaluate_model(recipe, paths, *, model_path: str, label: str, checkpoint: st
     resources = task_resources(recipe, paths)
     if resources and resources.get("judge"):   # a judge proves itself before it grades
         calibrate(recipe, paths, None, out=Path(paths["eval_dir"]) / f"{label}.calibration.json")
-    process = service.start(recipe["task"], resources, paths["run_id"]) if resources else None
+    process = start_resources(recipe, paths, resources)
     try:
         evaluate(task_name=recipe["task"], budgets=dict(recipe.get("agent") or {}), rows=paths["eval_rows"],
                  model_path=model_path, out=f"{paths['eval_dir']}/{label}",

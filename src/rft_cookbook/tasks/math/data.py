@@ -71,6 +71,12 @@ def _is_math(ds) -> str | None:
     return None
 
 
+def prepare_recipe(recipe: dict[str, Any], out: Path, **_: Any) -> dict[str, Any]:
+    data = recipe.get("data") or {}
+    return prepare(out, levels=set(data["levels"]) if data.get("levels") else None,
+                   train_limit=int(data.get("train_limit", 0)), eval_limit=int(data.get("eval_limit", 0)))
+
+
 def prepare(out: Path, *, levels: set[int] | None, train_limit: int = 0, eval_limit: int = 0,
             allow_mirror: bool = False) -> dict[str, Any]:
     math, math_record = load_verified([(MATH, lambda s: s.load()), (MATH_MIRROR, _by_subject)], _is_math,

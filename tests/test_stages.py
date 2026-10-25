@@ -45,3 +45,33 @@ def test_only_a_task_with_tools_or_a_judge_has_run_time_resources():
     assert resources["tool_service"] == "r-01" and resources["data_dir"] == "/v/data/officeqa/abc/corpus"
     assert resources["judge"] == {"id": "j", "models": ["m"], "tokenizer": "/v/models/judge-tok"}
     assert stages.task_resources({"task": "math"}, paths) is None
+
+
+def test_a_search_job_names_its_index_and_the_run_searches_it(monkeypatch, tmp_path):
+    from rft_cookbook.air.jobs import from_job_env, plan
+    from rft_cookbook.recipe import load_recipe
+
+    env = {"RFT_RECIPE": "search/verl/qwen3.6-35b-a3b_h100x16", "RFT_RUN_ID": "search-01",
+           "RFT_VOLUME_ROOT": "/Volumes/cat/sch/vol/rft", "RFT_VS_INDEX": "<vs-index>"}
+    assert "vector_search_index" not in from_job_env(env)[2]          # a placeholder left in is not an index
+    ref, run_id, site, _ = from_job_env({**env, "RFT_VS_INDEX": "cat.sch.passages_index"})
+    recipe = load_recipe(ref)
+    paths = plan(recipe, site, run_id, task_version="1")
+    assert stages.task_resources(recipe, paths) == {"vector_search": {"index": "cat.sch.passages_index"}}
+    assert stages.task_resources(load_recipe("math/verl/qwen3.5-2b_h100x8"), paths) is None
+
+
+def test_data_preparation_is_the_tasks_own_and_runs_once(monkeypatch, tmp_path):
+    from rft_cookbook.data import MANIFEST
+    from rft_cookbook.tasks.search import data
+
+    calls = []
+    monkeypatch.setattr(data, "prepare_recipe", lambda recipe, out, scratch: calls.append(out) or
+                        (out.mkdir(parents=True), (out / MANIFEST).write_text("{}")))
+    paths = {"data_dir": str(tmp_path / "data"), "local_dir": str(tmp_path / "local")}
+    assert stages.prepare_data({"task": "search"}, paths) == tmp_path / "data"
+    stages.prepare_data({"task": "search"}, paths)                    # prepared: reused
+    assert calls == [tmp_path / "data"]
+    monkeypatch.delattr(data, "prepare_recipe")
+    with pytest.raises(SystemExit, match="no data preparation"):
+        stages.prepare_data({"task": "search"}, {**paths, "data_dir": str(tmp_path / "other")})

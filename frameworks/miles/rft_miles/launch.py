@@ -32,7 +32,7 @@ from pathlib import Path
 import yaml
 
 from rft_cookbook.air.stages import (baseline_eval, calibrate, compare, eval_, export, prepare_data, run_until_abort,
-                                     stage_judge, task_resources, write_receipt)
+                                     stage_judge, start_resources, task_resources, write_receipt)
 from rft_cookbook.checkpoints import CheckpointStore
 from rft_miles.agent import CONFIG_KEY, ROW_KEY
 from rft_miles.render import GPUS_PER_NODE, launcher_path
@@ -165,7 +165,7 @@ def train(recipe, paths, rendered) -> None:
     _copy_dir(paths["megatron_dir"], paths["local_megatron"])
     rows = _agent_inputs(recipe, paths)
     resources = task_resources(recipe, paths)
-    process = service.start(recipe["task"], resources, paths["run_id"]) if resources else None
+    process = start_resources(recipe, paths, resources)
     try:
         run = lambda: _run_miles(recipe, paths, rendered, store, latest, total, rows)   # noqa: E731
         if nodes.count == 1:

@@ -27,6 +27,8 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from rft_cookbook.air.jobs import SITE_ENV
+
 FINAL = {"SUCCESS", "FAILED", "FAILURE", "CANCELED", "CANCELLED", "TIMEDOUT", "TIMED_OUT", "ERROR", "INTERNAL_ERROR",
          "TERMINATED", "SKIPPED"}
 # the training length and save frequency each framework's recipes name
@@ -106,6 +108,11 @@ class Chain:
             sets.append(f"env_variables.RFT_CODE_COMMIT={self.commit}")
         if re.search(r"^secrets:", text, re.M):
             sets.append(f"secrets.HF_TOKEN={self.site['RFT_HF_TOKEN_SECRET']}")
+        for name in SITE_ENV:   # a workspace resource the job asks for (an index)
+            if re.search(rf"^\s+{name}:", text, re.M):
+                if not self.site.get(name):
+                    raise RuntimeError(f"{stage} needs {name}: set it in site.env")
+                sets.append(f"env_variables.{name}={self.site[name]}")
         out = self.run(["air", "run", "-f", str(path), "-p", self.site["RFT_PROFILE"], "--override", *sets])
         found = re.search(r"Job Run ID: (\d+)", out)
         if not found:

@@ -15,6 +15,7 @@ SITE = {"RFT_PROFILE": "ws", "RFT_VOLUME_ROOT": "/Volumes/cat/sch/vol/rft", "RFT
         "RFT_MILES_IMAGE": "miles@sha256:bb", "RFT_HF_TOKEN_SECRET": "scope/key"}
 VERL = "officeqa/verl/qwen3.6-35b-a3b_h100x16"
 MILES = "officeqa/miles/qwen3.6-35b-a3b_h100x16"
+SEARCH = "search/verl/qwen3.6-35b-a3b_h100x16"
 
 
 class FakeAir:
@@ -94,6 +95,19 @@ def test_an_image_run_by_its_tag_is_recorded_by_its_digest(tmp_path):
     assert by_stage["prep"]["environment.docker_image.url"] == "verl:v1"
     assert by_stage["prep"]["env_variables.RFT_IMAGE"] == "verl@sha256:aa"
     assert by_stage["train"]["env_variables.RFT_IMAGE"] == "verl@sha256:aa"
+
+
+def test_the_jobs_that_search_get_the_index_from_the_site_file(tmp_path):
+    air = FakeAir()
+    site = {**SITE, "RFT_VS_INDEX": "cat.sch.passages_index"}
+    chain.Chain(SEARCH, "r-01", site, [], root=recipes_root().parent, state=tmp_path / "r-01.json", run=air,
+                poll_s=0, log=lambda line: None).go()
+    by_stage = {s["stage"]: s for s in air.submitted}
+    assert {stage for stage, s in by_stage.items() if "env_variables.RFT_VS_INDEX" in s} == {
+        "baseline_eval", "train", "eval"}
+    assert by_stage["train"]["env_variables.RFT_VS_INDEX"] == "cat.sch.passages_index"
+    with pytest.raises(RuntimeError, match="needs RFT_VS_INDEX"):
+        make(SEARCH, FakeAir(), tmp_path, run_id="r-02").go()
 
 
 def test_a_failed_stage_stops_the_chain(tmp_path):
