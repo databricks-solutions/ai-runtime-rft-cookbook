@@ -74,8 +74,11 @@ def test_a_job_resolves_its_run_from_its_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("RFT_RUN_DIR", str(tmp_path / "job"))
     monkeypatch.setitem(launch.STAGES, "prep", lambda recipe, paths, run: seen.update(
         run=run, id=paths["run_id"], seed=recipe["train"]["seed"], temperature=recipe["eval"]["temperature"]))
+    receipts = []
+    monkeypatch.setattr(launch, "write_receipt", lambda paths, stage, overrides: receipts.append((stage, overrides)))
     assert launch.main(["prep"]) == 0
     assert seen == {"run": tmp_path / "job" / "math-test-03", "id": "math-test-03", "seed": 7, "temperature": 0.5}
+    assert receipts == [("prep", ["train.seed=7", "eval.temperature=0.5"])]   # before the stage ran
 
 
 def test_officeqa_renders_its_evaluation_gate(tmp_path):

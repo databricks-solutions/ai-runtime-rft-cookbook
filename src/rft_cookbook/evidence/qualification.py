@@ -6,6 +6,10 @@ the job was given one: `RFT_CODE_COMMIT`), the recipe as checked in and the over
 applied, the image (`RFT_IMAGE`), the model and judge tokenizer revisions, the data and corpus
 (the prepared data's manifest), the evaluation policy, the topology, and the checks:
 
+- same code: every stage of the run (each writes a receipt, `rft_cookbook.air.stages.write_receipt`)
+  ran the code this record is written with, and train, export and eval did run (the record lists
+  each stage's image and overrides: miles trains on its image and evaluates on verl's, and a run
+  continued to more updates trained under two step counts);
 - calibration: the judge passed its calibration fixtures (recipes with a judge);
 - export: the exported weights are those of the published checkpoint (re-derived from it);
 - evaluated checkpoint: the trained evaluation served that export;
@@ -71,6 +75,14 @@ def _check(name: str, passed: bool | None, detail: str = "") -> dict[str, Any]:
     return {"name": name, "passed": passed, "detail": detail}
 
 
+def _same_code(receipts: list[dict], code: str) -> dict[str, Any]:
+    differ = sorted({r["stage"] for r in receipts if r["code"]["sha256"] != code})
+    missing = sorted({"train", "export", "eval"} - {r["stage"] for r in receipts})
+    detail = "; ".join(filter(None, [f"other code: {', '.join(differ)}" if differ else "",
+                                     f"no receipt: {', '.join(missing)}" if missing else ""]))
+    return _check("same_code", not differ and not missing, detail or f"{len(receipts)} receipts")
+
+
 def record(recipe: dict[str, Any], paths: dict[str, Any], comparison: dict[str, Any], *,
            checked_in: dict[str, Any], code_root: Path, env: dict[str, str] | None = None) -> dict[str, Any]:
     from rft_cookbook.checkpoints import CheckpointError, CheckpointStore
@@ -104,6 +116,9 @@ def record(recipe: dict[str, Any], paths: dict[str, Any], comparison: dict[str, 
     parity = _read(run_dir / "parity.json")
     if parity is not None:
         checks.append(_check("parity", bool(parity.get("agree"))))
+    code = {**code_identity(code_root), "commit": env.get("RFT_CODE_COMMIT")}
+    receipts = [r for r in (_read(p) for p in sorted((run_dir / "receipts").glob("*.json"))) if r]
+    checks.append(_same_code(receipts, code["sha256"]))
 
     differs = deviations(checked_in, recipe)
     passed = all(c["passed"] for c in checks)
@@ -115,7 +130,9 @@ def record(recipe: dict[str, Any], paths: dict[str, Any], comparison: dict[str, 
         "recipe": {"name": recipe["name"], "checked_in_sha256": checked_in["resolved_sha256"],
                    "resolved_sha256": recipe["resolved_sha256"], "deviations": differs,
                    "overrides": shlex.split(env.get("RFT_SET", ""))},
-        "code": {**code_identity(code_root), "commit": env.get("RFT_CODE_COMMIT")},
+        "code": code,
+        "stages": sorted({json.dumps({k: r.get(k) for k in ("stage", "image", "overrides")}, sort_keys=True)
+                          for r in receipts}),
         "image": env.get("RFT_IMAGE"),
         "model": {"id": recipe["model"]["id"], "revision": recipe["model"]["revision"],
                   "staged_revision": staged.get("revision")},
@@ -128,5 +145,6 @@ def record(recipe: dict[str, Any], paths: dict[str, Any], comparison: dict[str, 
                      "weights_sha256": exported.get("weights_sha256")},
         "topology": recipe.get("compute"),
         "checks": checks,
-        "result": comparison.get("splits"),
+        "result": {"mean_difference": summary.get("mean_difference"), "bootstrap_95": summary.get("bootstrap_95"),
+                   "splits": comparison.get("splits")},
     }

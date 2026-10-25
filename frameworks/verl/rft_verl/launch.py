@@ -28,7 +28,7 @@ from pathlib import Path
 import yaml
 
 from rft_cookbook.air.stages import (ABORT_FILE, baseline_eval, calibrate, compare, eval_, export, prepare_data,
-                                     run_until_abort, stage_judge)
+                                     run_until_abort, stage_judge, write_receipt)
 from rft_cookbook.air.stages import task_resources as resources
 from rft_cookbook.checkpoints import CheckpointStore
 from rft_verl.checkpoint import resume_overrides
@@ -149,6 +149,7 @@ def main(argv=None) -> int:
     print(f"[launch] {argv[0]} of {run_id}: {ref} {' '.join(overrides)}".rstrip(), flush=True)
     recipe, paths = _load(rendered)
     os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+    write_receipt(paths, argv[0], overrides)
     STAGES[argv[0]](recipe, paths, rendered)
     return 0
 

@@ -32,7 +32,7 @@ from pathlib import Path
 import yaml
 
 from rft_cookbook.air.stages import (baseline_eval, calibrate, compare, eval_, export, prepare_data, run_until_abort,
-                                     stage_judge, task_resources)
+                                     stage_judge, task_resources, write_receipt)
 from rft_cookbook.checkpoints import CheckpointStore
 from rft_miles.agent import CONFIG_KEY, ROW_KEY
 from rft_miles.render import GPUS_PER_NODE, launcher_path
@@ -217,6 +217,7 @@ def main(argv=None) -> int:
     print(f"[launch] {argv[0]} of {run_id}: {ref} {' '.join(overrides)}".rstrip(), flush=True)
     recipe, paths = _load(rendered)
     os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+    write_receipt(paths, argv[0], overrides)
     STAGES[argv[0]](recipe, paths, rendered)
     return 0
 

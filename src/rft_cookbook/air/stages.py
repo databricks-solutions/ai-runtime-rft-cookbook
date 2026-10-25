@@ -180,6 +180,19 @@ def compare(recipe, paths, rendered) -> None:
           + ", ".join(f"{c['name']} {'ok' if c['passed'] else 'FAILED'}" for c in record["checks"]))
 
 
+def write_receipt(paths, stage: str, overrides: list[str]) -> dict[str, Any]:
+    """What this stage runs with (code, image, overrides), under `<run dir>/receipts`: the
+    qualification record checks that every stage of the run ran the same."""
+    from rft_cookbook.evidence.qualification import code_identity
+    from rft_cookbook.recipe import recipes_root
+
+    code = {**code_identity(recipes_root().parent), "commit": os.environ.get("RFT_CODE_COMMIT")}
+    receipt = {"stage": stage, "code": code, "image": os.environ.get("RFT_IMAGE"), "overrides": list(overrides),
+               "recipe_sha256": paths["recipe_sha256"], "host": socket.gethostname(), "at": time.time()}
+    _write(Path(paths["run_dir"]) / "receipts" / f"{stage}-{int(receipt['at'])}-{receipt['host']}.json", receipt)
+    return receipt
+
+
 def request_abort(abort_file: str | None, reason: str) -> None:
     """Ask the launcher to stop the run (atomically: the launcher never reads half a request)."""
     if not abort_file:
