@@ -531,4 +531,12 @@ qualification record.
    service only when its resources name one. A workspace resource a task's jobs ask for is a
    placeholder like the volume root (`RFT_VS_INDEX`, filled from `site.env`), and the index name
    is part of the task settings, so evaluations against different indexes do not compare.
+   Result (2026-10-26, `search-q36-01`, Qwen3.6-35B-A3B, one training seed): 50 updates in about
+   2.5 hours; held-out exact match 28.2% → 37.4%, +9.2 points, paired question-bootstrap 95%
+   interval [+5.2, +13.4] (500 questions, every episode valid, leakage clean). The recipe allows 16
+   turns, not the prototype's 12: with 12, the base model reached the limit in half its held-out
+   episodes, still searching. The gain is mostly answering: the trained model answers 87% of the
+   held-out questions (the base model 48%, which reaches the 16-turn limit in 223 of 500) after
+   fewer searches (5.7 tool calls against 10.0), and fewer of its answers are right (43% against
+   58.5%).
 5. **slime**, then other frameworks on demand.
