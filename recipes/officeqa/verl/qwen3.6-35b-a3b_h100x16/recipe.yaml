@@ -1,14 +1,8 @@
-# OfficeQA on verl: Qwen3.6-35B-A3B answers questions about U.S. Treasury Bulletins with search,
-# read and compute tools, and cites the evidence for its answer. A hosted GLM-5.3-Flash judge checks
-# the evidence. Two nodes of 8 H100s: one trains, one serves.
-# This is the reference OfficeQA recipe. Its miles twin (recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16)
-# is matched to it and compared with its baseline.
-#
-# Status: measured (run oqa-q36-verl-03, docs/records/oqa-q36-verl-03): 100 updates in about 6
-# hours; held-out supported pass@1 20.3% -> 23.8% (+3.5 points, 95% CI -2.9 to +9.9), on 43
-# questions x 4 samples. Two earlier runs gained +2.9 and +0.0 points, and the trained models of all
-# three score alike (22.1% to 23.8%). So 100 updates gain about three points, which no single run
-# can resolve. Training also halves the number of episodes that end at the token limit.
+# OfficeQA with Qwen3.6-35B-A3B on verl: 16 H100s (8 train, 8 serve).
+# The agent searches Treasury Bulletins, computes with retrieved figures and cites its evidence.
+# A hosted GLM-5.3-Flash judge checks support. Training uses 100 GRPO updates.
+# The miles recipe matches these settings for a cross-framework comparison.
+# See README.md for held-out results, confidence intervals and supporting evidence.
 extends: agentic/verl
 description: OfficeQA on verl, Qwen3.6-35B-A3B, hosted judge.
 task: officeqa
@@ -86,4 +80,4 @@ compute:
   trainer_gpus: 8
   rollout_gpus: 8
   timeout_minutes: 240
-  train_timeout_minutes: 1080   # the Qwen3.5 run trained for about 7.5 hours
+  train_timeout_minutes: 1080   # includes startup, checkpoint writes and training

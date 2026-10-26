@@ -1,28 +1,8 @@
-# OfficeQA on miles: Qwen3.6-35B-A3B answers questions about U.S. Treasury Bulletins with search,
-# read and compute tools, and cites the evidence for its answer. A hosted GLM-5.3-Flash judge checks
-# the evidence. Two nodes of 8 H100s: one trains, one serves.
-#
-# This is the miles twin of recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, matched setting by setting
-# so that the two frameworks compare:
-#   same       the model and revision, data, agent budgets (128 turns, 4,096 tokens a turn, a
-#              98,304-token context), judge, sandbox and evaluation (served by vLLM from the verl
-#              image, and compared with the verl run's baseline through eval.baseline_run).
-#              Training: GRPO over 100 updates of 4 prompts x 4 samples, learning rate 1e-6, KL 0.01
-#              to the base model, clip 0.2/0.28 and dual-clip 3.0, token-mean loss, AdamW (weight
-#              decay 0.01, betas 0.9/0.999), gradient clip 1.0, no MoE load-balancing loss, TP2 x CP4
-#              x EP8, each episode trained as one sequence, a save every 25 updates. The weights go
-#              to the serving node over NCCL after every update.
-#   different  miles generates each rollout while the previous one trains, so rollouts are one
-#              update behind (verl's may lag by up to 4); SGLang serves the training rollouts where
-#              verl uses vLLM; the data order and random streams.
-#
-# Status: measured (run oqa-q36-miles-03, docs/records/oqa-q36-miles-03), against the verl run's
-# baseline: held-out supported pass@1 20.3% -> 23.8% (+3.5 points, 95% CI -3.5 to +11.6), the same
-# score the verl run reached. Almost every trained episode ends with an answer (233 of 236).
-#
-# Keep the MoE load-balancing loss off. An earlier run with it on (global, 1e-3; verl doesn't use
-# it) degraded from about update 72: 50 of 236 evaluation episodes broke off into incoherent text,
-# and held-out supported pass@1 fell to 11.0%. Its MoE router moved 4.8x as far as verl's.
+# OfficeQA with Qwen3.6-35B-A3B on miles: 16 H100s (8 train, 8 serve).
+# Matches the verl recipe's model, data, agent budgets, judge, optimizer and loss settings.
+# Rollouts use SGLang and lag training by one update; evaluation uses the common vLLM harness.
+# Keep MoE load-balancing loss disabled when reproducing the cross-framework comparison.
+# See README.md for results and the known AI Runtime shutdown limitation.
 extends: agentic/miles
 description: OfficeQA on upstream miles, Qwen3.6-35B-A3B, hosted judge.
 task: officeqa

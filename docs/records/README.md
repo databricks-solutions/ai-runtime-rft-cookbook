@@ -1,67 +1,61 @@
-# Run records and test results
+# Results and test coverage
 
-This folder holds the evidence behind the results in the [README](../../README.md): one folder
-per GPU run, and below, the latest result of every test tier.
+The evaluations below compare a base model with its trained checkpoint on the same held-out
+questions. The links open the machine-readable evidence: configuration, checks, and scores.
+For setup and commands, start with the [cookbook README](../../README.md).
 
-## Run records
+## Evaluated recipes
 
-Each run folder holds:
+| Task and model | Framework | Before → after | Change, 95% CI | Evidence |
+|---|---|---|---|---|
+| Agentic search · Qwen3.6-35B-A3B | verl | 28.2% → 37.4% | +9.2 points (+5.2 to +13.4) | [Qualification](search-q36-01/qualification.json) · [Comparison](search-q36-01/comparison.json) |
+| OfficeQA · Qwen3.6-35B-A3B | verl | 20.3% → 23.8% | +3.5 points (−2.9 to +9.9) | [Qualification](oqa-q36-verl-03/qualification.json) · [Comparison](oqa-q36-verl-03/comparison.json) |
+| OfficeQA · Qwen3.6-35B-A3B | miles | 20.3% → 23.8% | +3.5 points (−3.5 to +11.6) | [Qualification](oqa-q36-miles-03/qualification.json) · [Comparison](oqa-q36-miles-03/comparison.json) |
+| Math · Qwen3.5-2B | verl | 61.8% → 62.0% | +0.2 points (−2.8 to +3.2) | [Qualification](math-2b-02/qualification.json) · [Comparison](math-2b-02/comparison.json) |
 
-- `qualification.json`: the run record. It lists what the run used (code, recipe, image, model,
-  data, evaluation settings, GPUs), the checks it passed, and its status;
-- `comparison.json`: the base and trained evaluations, compared question by question;
-- `export.json`: the trained checkpoint that was evaluated;
-- `calibration.json` (OfficeQA): the judge's results on known cases, before it graded anything;
-- `receipts/`: one file per stage, naming the code and image it ran with;
-- `SANITIZED.json`: the workspace details replaced by placeholders, and the sha256 of every
-  original file.
+Search uses answer exact match. Math checks MATH-500 answers. OfficeQA uses supported pass@1:
+a correct answer counts only when the judge also accepts its cited evidence. The OfficeQA
+intervals include zero; the math recipe is a two-update workflow test, not a quality benchmark.
 
-| Run | Recipe | Status |
+Confidence intervals use paired bootstrap resampling over questions. Training probes are
+reported separately from held-out questions and do not enter the held-out scores.
+
+The search index contains the held-out questions' source passages and distractors. Base and
+trained models search the same corpus; the result measures question answering over that corpus,
+not generalization to unseen documents.
+
+## Integration tests
+
+GPU smoke tests exercise short training, restart/resume, export, and evaluation. They test the
+workflow rather than a useful training budget.
+
+| Recipe | Coverage | Evidence |
 |---|---|---|
-| [`search-q36-01`](search-q36-01/qualification.json) | `search/verl/qwen3.6-35b-a3b_h100x16` | measured |
-| [`oqa-q36-verl-03`](oqa-q36-verl-03/qualification.json) | `officeqa/verl/qwen3.6-35b-a3b_h100x16` | measured |
-| [`oqa-q36-miles-03`](oqa-q36-miles-03/qualification.json) | `officeqa/miles/qwen3.6-35b-a3b_h100x16` | measured |
-| [`math-2b-02`](math-2b-02/qualification.json) | `math/verl/qwen3.5-2b_h100x8` | measured |
-| [`search-q36-smoke-02`](search-q36-smoke-02/qualification.json) | `search/verl/qwen3.6-35b-a3b_h100x16`, `--smoke`, 12 turns | smoke-tested |
-| [`math-2b-smoke-01`](math-2b-smoke-01/qualification.json) | `math/verl/qwen3.5-2b_h100x8`, `--smoke` | smoke-tested |
-| [`math-2b-smoke-02`](math-2b-smoke-02/qualification.json) | `math/verl/qwen3.5-2b_h100x8`, `--smoke`, image from Unity Catalog | smoke-tested |
-| [`oqa-q36-miles-smoke-01`](oqa-q36-miles-smoke-01/qualification.json) | `officeqa/miles/qwen3.6-35b-a3b_h100x16`, `--smoke`, image from Unity Catalog | smoke-tested; [shutdown caveat](oqa-q36-miles-smoke-01/README.md) |
+| Math on verl | Complete smoke test through `databricks air`, using a Unity Catalog image | [Qualification](math-2b-smoke-02/qualification.json) |
+| Agentic search on verl | Complete smoke test with the recipe's 16-turn budget and a Unity Catalog image | [Qualification](search-q36-smoke-03/qualification.json) |
+| OfficeQA on miles | Checkpoint, resume, export, and evaluation verified; training shutdown remains unreliable | [Qualification](oqa-q36-miles-smoke-01/qualification.json) · [Limitation](oqa-q36-miles-smoke-01/README.md) |
 
-The GLM-5.3-Flash recipes ran before run records existed; their recipe headers describe their
-runs.
+The CPU suites cover agent decisions, tools, scorers, evaluation accounting, checkpoint storage,
+and recipe/job consistency. Adapter suites also test hooks against pinned framework code.
+These tests do not replace GPU testing inside the framework images. See
+[Testing](../architecture.md#testing) for the scope and [the CI workflow](../../.github/workflows/ci.yml)
+for the environments and commands.
 
-The older 35B records (`search-q36-01`, `search-q36-smoke-02`, `oqa-q36-verl-03` and
-`oqa-q36-miles-03`) have an export hash (`training.weights_sha256`) derived from weight-file
-metadata, not their content, so runs of one model share it. Newer records hash the content of
-every weight file, and say so (`training.weights_hash: content`).
+## Reading the evidence
 
-The OfficeQA verl and search Unity Catalog smoke runs are still in progress. Their records will
-be published only after evaluation and qualification finish.
+Each published evaluation folder contains:
 
-## Test results (2026-10-26)
+- `qualification.json`: model, data, recipe, code and image identities; checks and final status;
+- `comparison.json`: paired scores, confidence intervals, and per-split results;
+- `export.json`: the checkpoint and exported weight-file identity;
+- `calibration.json`, for judged tasks: the judge's results on known examples;
+- `receipts/`: the code, image, and overrides used by each stage;
+- `SANITIZED.json`: original file hashes and the workspace details replaced by placeholders.
 
-The [testing tiers](../architecture.md#testing) are described in the architecture. GitHub Actions
-isn't enabled on this repository yet. The four CI jobs in
-[`ci.yml`](../../.github/workflows/ci.yml) were first replayed on `c627256`, each in a fresh
-Python 3.12 environment with the installs the job lists. The CPU results below are the later
-rerun on the clean `83b0e80` checkout, reusing those environments and the pinned upstream
-sources. This rerun is not an image-level test.
+A `measured` qualification describes the full recipe; `smoke-tested` describes a modified
+configuration, such as a shorter training budget. Read the checks and configuration alongside
+the status. A qualification record does not establish that every job terminated cleanly.
 
-| Tier | What ran | Commit | Result |
-|---|---|---|---|
-| 1, 2, 4 | CI job `core`: unit and contract tests, every recipe and job, the public-safety scan | 83b0e80 | 616 passed; 3 expected failures (known limits of the vendored math grader) |
-| 2, 3, 4 | CI job `verl`: the verl adapter against the pinned verl and a real Qwen3.5 tokenizer | 83b0e80 | 40 passed |
-| 2, 4 | CI job `miles`: the miles adapter without miles installed | 83b0e80 | 27 passed, 2 skipped (they need miles) |
-| 3 | CI job `miles-api`: the miles adapter against the pinned miles | 83b0e80 | 47 passed |
-| 5 | GPU smoke of the math recipe on verl through `databricks air`, with its image from Unity Catalog (`math-2b-smoke-02`) | dba3e87 | smoke-tested |
-| 5 | GPU smoke of the search recipe on verl, with 12 turns (`search-q36-smoke-02`) | 2ead10d | smoke-tested |
-| 5 | OfficeQA on miles through the recipe runner: two updates, a resumed third, export, evaluation and comparison (`oqa-q36-miles-smoke-01`) | e151733 | smoke-tested record; training shutdown still fails (see the run's note) |
-| 6 | Full runs of the four measured recipes (table above) | 7c2a9f1, 593dba3 | measured |
-
-Not covered yet:
-
-- running the CPU tiers on every pull request, which needs GitHub Actions;
-- tier 3 inside the framework images (the CPU jobs install the pinned frameworks' Python code
-  instead);
-- a miles GPU smoke whose training jobs both terminate successfully without no-op retries. The
-  published smoke record verifies the checkpoint and evaluations, not clean training shutdown.
+The older 35B evaluations above and the 12-turn search smoke identify exported weights using
+file metadata, not content. Newer exports carry `training.weights_hash: content`. Historical
+records are preserved as produced, rather than rewritten to claim stronger checks.

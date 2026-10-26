@@ -1,326 +1,220 @@
 # Architecture
 
-This page explains how the cookbook is put together: what a task is, how an episode runs on each
-framework, and how checkpoints and run records work. Read it if you want to add a task or a
-framework, or to understand exactly what a result means. To run a recipe, the
-[README](../README.md) is enough.
+This guide is for contributors adding a task, adapting a framework, or examining how an
+experiment is evaluated. For setup and commands, see [Running recipes](running-recipes.md).
 
 ## Overview
 
+A task defines the prompt, tools, budgets, stopping rule, and scorer. A framework adapter runs
+that task and connects its reward to training. Evaluation uses the same task against vLLM.
+
+```text
+                           AgentTask
+                               |
+                         EpisodePolicy
+                    /          |           \
+             verl loop    miles agent    evaluation
+                          (session v2)   (vLLM + chat)
+                    \          |           /
+                         EpisodeRecord
+                               |
+                        scorer and evidence
 ```
-                    AgentTask  (prompt, tools, when to stop, budgets, scorer, data)
-                        │
-                   agent.policy      the shared rules: which tool calls run,
-                        │            when an episode ends, what enters the context
-        ┌───────────────┼─────────────────────────┐
-        │               │                         │
-  verl agent loop   Chat Completions        Chat Completions
-  (rft_verl)        harness behind          harness against
-                    miles' session          a vLLM server
-                    server (rft_miles)      (evaluation)
-        │               │                         │
-        └───────────────┼─────────────────────────┘
-                        │
-                  EpisodeRecord  ──►  scorer  ──►  reward, metrics, run record
-```
 
-- A **task** describes the job: the system prompt, the tools, how an episode ends with an
-  answer, the budgets, and how an answer is scored.
-- An **episode** is one attempt at one question. The rules of an episode live in one shared
-  module, `rft_cookbook.agent.policy`.
-- Each framework **drives** episodes its own way. verl uses its native agent loop, miles uses a
-  Chat Completions harness behind its session server, and evaluation uses the same harness
-  against a vLLM server. All three call the same rules.
-- Every episode, in training or evaluation, produces the same **`EpisodeRecord`**. Scoring,
-  metrics and run records read only that record, so they work the same for every framework.
+`EpisodePolicy` owns the decisions shared by all three drivers: which tool calls run, whether
+observations fit, and when an answer ends an episode. Frameworks own their tokens, loss masks,
+and log-probabilities. The adapters record enough information to link a scored episode to the
+sample used for training.
 
-## Design principles
-
-1. **Tasks don't depend on frameworks.** A task's tools, prompt and scorer import no RL framework.
-   Only the adapters under `frameworks/` do.
-2. **Shared rules, native drivers.** Each framework runs episodes in its own way, but every one
-   makes the same decisions by calling `agent.policy`.
-3. **The framework owns the training tokens.** Sampled token ids, loss masks and log-probabilities
-   stay in the framework. The adapter records that the episode that was scored is the one that
-   trained.
-4. **No forks.** Adapters use only documented extension points of the pinned framework version. A
-   patch to a framework's image is a last resort, with a written reason and a condition for
-   removing it.
-5. **Frameworks save, the cookbook publishes.** Each framework writes checkpoints in its native
-   format. The cookbook copies them to the volume, verifies them, resumes from them and exports
-   them, behind one interface.
-6. **Evaluation doesn't depend on the framework.** Every trained checkpoint is exported to Hugging
-   Face weights and evaluated by the same harness on vLLM, so results compare across frameworks.
-7. **Nothing workspace-specific is committed.** Checked-in jobs leave placeholders that you fill
-   in from your own `site.env` when you submit them.
+Task code does not import an RL framework. Framework-specific code lives under `frameworks/`.
+Adapters use upstream extension points; image patches are kept small, pinned, and documented
+with a condition for removal.
 
 ## Tasks
 
-A task is a Python package, `rft_cookbook.tasks.<name>`, whose `task()` function returns an
-`AgentTask`:
+A task is a package under `rft_cookbook.tasks`. Its `task()` function returns an `AgentTask`:
 
-| Part | What it is | OfficeQA, for example |
-|---|---|---|
-| system prompt | The instructions; the run records its hash | A research agent's instructions |
-| tools | Tool implementations and their OpenAI JSON schemas | search, grep, read, list, compute |
-| terminal rule | How an episode ends with an answer: a final tool call, or an answer pattern in a turn without tool calls | the `submit_report` tool |
-| budgets | Turns, tool calls per turn, context tokens, tokens per turn, tool output size, timeouts | 128 turns, 4,096 tokens a turn, a 98,304-token context, 8,000-byte tool results |
-| scorer | Rule-based, or with an LLM judge | answer check, then a judge of the cited evidence |
+| Field | Purpose |
+|---|---|
+| `system_prompt` | Instructions shared by training and evaluation |
+| `tools` | Executable tools and their OpenAI function schemas |
+| `terminal` | A final-answer tool, or an answer pattern in a turn without tool calls |
+| `budgets` | Turn, context, tool-call, output, and timeout limits |
+| `scorer` | Answer checking, with an optional evidence judge |
 
-Its data module prepares the rows every framework reads: `id`, `split`, `messages`,
-`ground_truth` and `metadata`. A recipe can change a task's budgets, scorer settings and data
-selection, but not its tool code.
+Data is stored as JSONL rows with `id`, `split`, `messages`, `ground_truth`, and `metadata`.
+Rows do not contain a system prompt; the task supplies it. Framework adapters convert these
+rows to their own input format. Evaluation reads them directly.
 
 ### Adding a task
 
-The math task ([`src/rft_cookbook/tasks/math`](../src/rft_cookbook/tasks/math/__init__.py)) is
-the smallest example to copy.
+Use the [math task](../src/rft_cookbook/tasks/math/__init__.py) as the smallest example.
 
-1. Create `src/rft_cookbook/tasks/<name>/__init__.py` with a `task(**budget_overrides)` function
-   that returns an `AgentTask`: a name and version, the system prompt, a `ToolSet`, a
-   `TerminalRule`, `Budgets` and a scorer.
-2. Add `data.py` with `prepare_recipe(recipe, out, **_)`. It writes `train.jsonl` and `eval.jsonl`
-   with `rft_cookbook.data.write_rows`, and a manifest of the sources.
-3. If the task needs resources outside the code, add `run_resources(recipe, paths)` to name them
-   and `preflight(resources)` to check them before a stage starts. For example, search names its
-   Vector Search index and checks that it is ready. OfficeQA names its tool service, corpus and
-   judge.
-4. Write a recipe that extends `agentic/verl` or `agentic/miles`, and copy the `jobs/` folder of
-   a similar recipe next to it. `pytest tests` checks that the jobs match the recipe.
-5. Add CPU tests with small recorded episodes.
+1. Implement `task(**budget_overrides)` and return an `AgentTask`.
+2. Add `data.py` with `prepare_recipe(recipe, out, **_)`. Write canonical rows and a manifest
+   that identifies their source and split.
+3. If the task needs external resources, implement `run_resources(recipe, paths)` and
+   `preflight(resources)`. OfficeQA uses a corpus, local tool service, and judge; search uses a
+   Vector Search index.
+4. Add a recipe extending `agentic/verl` or `agentic/miles`, with a checked-in job for each stage.
+5. Test the tools, scorer, and stopping behavior with small recorded episodes before a GPU run.
 
 ## Episode format
 
-`EpisodeRecord` is versioned JSON, written for every training and evaluation episode. It holds:
+`EpisodeRecord` is the common, versioned record for a training or evaluation attempt. It contains:
 
-- **identity**: the episode, task and task version, question, split and sample;
-- **policy**: the model and its revision or checkpoint, and the policy version behind each turn;
-- **agent settings**: hashes of the prompt, tool schemas, chat template, tool-call parser and
-  budgets, so that runs with different settings never compare by accident;
-- **turns**: for the model, its text, reasoning, parsed tool calls (with parse errors), finish
-  reason and token counts. For each tool call, its status (`ok`, `error`, `timeout`, `rejected` or
-  `skipped`), whether it ran, whether its output reached the model, truncation, latency and the
-  sandbox level it ran in;
-- **termination**: why the episode ended (`answer`, `no_answer`, `max_turns`, `context_budget`,
-  `tool_budget`, `length`, `policy_error` or `infra_error`) and the final answer;
-- **score**: the value and its components, whether it is valid, the scorer's policy and the
-  judge's verdict;
-- **status**: `ok`, `policy_failure` or `infra_failure`;
-- **collection** (training only): one **attestation** per training sample made from the episode.
-  It records the sample's token and loss-token counts, a hash of its tokens and loss mask, and
-  whether the whole final answer survived into the sample. The tokens themselves stay in the
-  framework.
+- task, question, model, sample, and configuration identities;
+- model turns, visible text, reasoning, parsed tool calls, and token counts;
+- tool outcomes, timeouts, truncation, sandbox level, and the observations delivered to the model;
+- the stopping reason and final answer;
+- the score, its validity, components, and any judge verdict;
+- training attestations linking the episode to collected tokens and loss masks.
 
-### The rules of an episode
+A record distinguishes an incorrect answer from an infrastructure or driver failure. That
+separation is important: a failed judge or unreachable tool must not become a zero reward.
 
-`agent.policy` makes these decisions for every driver. It works on the driver's parsed tool calls
-and token counts; it doesn't tokenize.
+### Episode decisions
 
-- Tool calls in one turn run in order, up to the per-turn limit. Calls past the limit are
-  recorded as `skipped`, including a final-answer call.
-- The first well-formed final-answer call within the limit ends the episode. The turn's other
-  calls are `skipped`, since the model would never see their results.
-- A malformed call, including a malformed final-answer call, goes back to the model as a tool
-  error and counts toward the limit.
-- A turn cut off by the token limit ends the episode without an answer, even if a final-answer
-  call could be parsed from it. So does an empty turn.
-- The budgets are separate: total context tokens, total generated tokens, a reserve of tokens the
-  next turn needs, and the size of each tool result.
-- One turn's tool results enter the context together, and only if they leave room for the next
-  turn. Otherwise the episode ends with `context_budget`.
-- Every driver separates a turn's `<think>` reasoning from its visible text the same way. The
-  answer is read from the visible text.
+The drivers pass parsed calls and token counts to `EpisodePolicy`; the policy does not tokenize.
+
+- Calls are considered in order, up to the per-turn limit. Extra calls are recorded as skipped.
+- The first well-formed terminal call within that limit ends the episode. Other calls in the
+  same turn are skipped because the model cannot receive their results.
+- Malformed calls produce tool errors and consume the applicable call budget.
+- A length-limited or empty turn ends without an answer.
+- A turn that still needs tools at the turn limit ends with `max_turns`.
+- A turn's observations enter the context together, only if they leave room for another turn.
+
+The response budget includes generated text, tool observations, and template tokens appended
+after the initial prompt. The context budget includes the initial prompt as well.
 
 ### Which samples train
 
-| Case | Reward |
+| Episode or sample | Treatment |
 |---|---|
-| The episode answered, and the whole answer is in the training sample | The scorer's reward |
-| The episode ended without an answer (turn limit, empty or cut-off turn) | A valid zero, if the scorer allows it |
-| The training sample cut off or dropped the answer that was scored | None: the sample is excluded |
-| The score is invalid (for example, the judge didn't answer), or the episode failed for infrastructure reasons | None: the sample is excluded |
+| Answered, with the complete final answer retained | Use the scorer's reward |
+| Ended without an answer | Use a valid zero when the scorer permits it |
+| Collection dropped or truncated the scored answer | Exclude the sample |
+| Invalid score, infrastructure failure, or driver failure | Exclude the sample |
 
-An excluded sample never reaches the update. Both adapters drop its whole GRPO group, so it
-doesn't bias the group's baseline either, and both count the exclusions. If too many episodes in
-a row are excluded (`train.max_consecutive_exclusions`), the run stops instead of spinning. When
-the judge is the cause, training first waits for it to come back, for up to
+Both frameworks drop an excluded sample's whole GRPO group. Repeated exclusions stop training
+according to `train.max_consecutive_exclusions`. A judge outage first pauses scoring for up to
 `train.judge_outage_wait_s`.
 
 ## Tools and sandboxing
 
-A tool implements `call(arguments, context) -> ToolResult`, with a timeout and an output cap.
-Light tools run in-process. Heavy ones (OfficeQA's corpus search) run in a **tool service** on
-each node: an HTTP server that loads the corpus once and serves every episode on that node. The
-launcher starts it before the framework and stops it after. If the service is unreachable, the
-episode is an infrastructure failure, not a tool error.
+A tool implements `call(arguments, context) -> ToolResult`. `ToolSet` applies a timeout and output
+cap. Ordinary tool errors go back to the model; a backing-service failure raises `ToolInfraError`
+and invalidates the episode.
 
-Tools that run model-written code use a sandbox:
+OfficeQA hosts its corpus tools in one node-local HTTP service per node. This avoids loading
+the corpus for every episode. The launcher starts the service before training and stops it
+afterward.
 
-| Level | What it means |
+Model-written Python runs in a separate interpreter:
+
+| Level | Isolation |
 |---|---|
-| `strict` | bubblewrap: separate user, PID and network namespaces, a read-only root, an empty `/proc`, a private `/tmp`, and the workspace's data directories hidden. Fails if it isn't available. |
-| `best_effort` (default) | `strict` where available, otherwise a resource-limited subprocess without guaranteed network isolation; the fallback is logged |
-| `off` | A plain subprocess, for tests only |
+| `strict` | bubblewrap namespaces, no network, a read-only root, private temporary storage, and masked data/credential directories. Unavailable isolation fails the call. |
+| `best_effort` | Uses strict isolation when available; otherwise uses a resource-limited subprocess without a filesystem or network boundary. |
+| `off` | Plain subprocess, for tests only. |
 
-Every tool call records the level it actually ran at.
+OfficeQA recipes select `strict`. Every compute call records the isolation it actually received.
 
 ## Scoring and judges
 
-A scorer returns `RewardResult(valid, score, components)`. A judge scorer follows a versioned
-**judge policy**: the rubric and what part of the episode the judge sees, the allowed judge
-models, concurrency limits, timeouts and retries. A judge that doesn't return a verdict makes the
-score invalid, never zero: a judge outage must not look like a wrong answer. Each judge model is
-checked on the task's known cases (the `calibrate` stage) before it grades anything.
+A scorer returns `RewardResult(valid, score, components)`. Judge policies identify the allowed
+models, rubric, request budget, timeouts, retries, and fallback behavior. Calibration checks a
+judge on known examples before it grades evaluation answers.
+
+OfficeQA first checks answer correctness and the cited observation references. Only a correct
+answer with a valid evidence path reaches the support judge. An unavailable or undecided judge
+makes the score invalid, not incorrect. Evidence that cannot fit intact in the judge's request
+budget is also left undecided.
 
 ## Framework adapters
 
-Each adapter connects a framework to the cookbook. It converts the data, registers the tools,
-drives episodes, hands the reward to the framework, records attestations, publishes checkpoints
-and builds the launch command. Adapters are the only code that imports a framework.
+| Adapter | Episode driver | Training layout | Checkpoint integration |
+|---|---|---|---|
+| [verl](../frameworks/verl/README.md) | Native `ToolAgentLoop` subclass | V1 `separate_async`, with separate trainer and vLLM pools | Post-save callback |
+| [miles](../frameworks/miles/README.md) | Chat harness through session server v2 | Model-specific launcher; Qwen uses separate trainer and SGLang pools | Megatron post-save hook |
 
-- **verl** ([frameworks/verl](../frameworks/verl/README.md)): a subclass of verl's
-  `ToolAgentLoop` drives each episode and scores it with the task's scorer. verl's V1 trainer runs
-  in `separate_async` mode, with training and a vLLM rollout pool on separate GPUs. A post-save
-  callback publishes each checkpoint.
-- **miles** ([frameworks/miles](../frameworks/miles/README.md)): upstream miles, unmodified. The
-  cookbook's Chat Completions harness drives each episode against miles' session server, which
-  records the tokens. Hooks passed as command-line flags provide the reward, the attestations and
-  checkpoint publishing.
-
-The framework READMEs list the extension points each adapter uses and their known limits.
+All exported models are evaluated through the same vLLM harness. Cross-framework comparisons
+therefore share the evaluation implementation, not the training rollout engine.
 
 ## Checkpoints
 
-A framework's "checkpoint saved" signal doesn't mean the checkpoint is complete or durable. verl
-may still be writing, resuming needs more than the model weights, and miles saves its rollout
-state separately. So each adapter describes a checkpoint as a **bundle**: the files it needs,
-where each lives, and how to tell that each is complete.
+Each adapter describes a resumable checkpoint as a `CheckpointBundle`: its model, optimizer,
+random state, data position, and any rollout state, together with native completion markers.
 
-`CheckpointStore` gives every framework the same operations on bundles:
-
-- **publish**: copies the bundle to the volume, checks it against a manifest, and writes a
-  completion marker last. Recipes with very large checkpoints save straight to the volume and are
-  published in place, without a copy.
-- **latest**: the newest bundle with a completion marker. Partial copies are ignored.
-- **resume**: the framework's load arguments for that bundle.
-- **export**: finds and checks the Hugging Face weights the framework wrote.
-- **retention**: keeps the newest `checkpoint.keep` bundles, plus the newest one with complete
-  Hugging Face weights.
+`CheckpointStore` publishes the bundle to the volume and writes its completion marker last.
+`latest()` ignores incomplete publications. Large recipes save directly to the volume; smaller
+ones save locally and copy the completed bundle.
 
 | | verl | miles |
 |---|---|---|
-| A checkpoint | `global_step_N/` | Megatron `iter_N/`, with Hugging Face weights in `iter_N/hf` |
-| Saved every | `train.save_freq` updates | `train.save_interval` updates |
-| Resumed with | `trainer.resume_mode=resume_path` | `--load` |
+| Directory | `global_step_N/` | `iter_N/` |
+| Save interval | `train.save_freq` | `train.save_interval` |
+| Resume option | `trainer.resume_mode=resume_path` | `--load` |
 
-A 35B checkpoint is about 0.5 TB (70 GB of weights, the rest optimizer state). Those recipes
-don't hash files as they publish (`hash_files: false`), which would slow down every save; the
-`export` stage hashes the final checkpoint's weights instead. They keep the newest two.
+The export stage checks the Hugging Face weights. Retention keeps the newest `checkpoint.keep`
+bundles and protects the newest bundle with complete exportable weights. A 35B checkpoint is
+about 0.5 TB, including optimizer state. Those recipes avoid hashing the entire checkpoint at
+every save; export hashes the final model's weight files instead.
 
 ## Recipes
 
-A recipe is YAML that extends the generic agentic recipe of its framework. Here is an abridged
-version of the OfficeQA recipe on verl:
+Recipes extend a generic framework recipe. Mappings merge recursively; child lists and scalar
+values replace their parents. Command-line overrides apply last. The resolved configuration is
+hashed and included in the run's evidence.
 
-```yaml
-extends: agentic/verl
-task: officeqa
-stages: [prep, stage_model, stage_judge, calibrate, baseline_eval, train, export, eval, compare]
-model: {id: Qwen/Qwen3.6-35B-A3B, revision: <commit>, tool_parser: qwen3_coder}
-scoring:
-  sandbox: strict
-  judge: {id: glm-5.3-flash-hosted-support-v1, provider: databricks, models: [system.ai.glm-5-3-flash]}
-eval: {samples: 4, temperature: 1.0}
-train: {rollout_n: 4, total_training_steps: 100, lr: 1.0e-6, save_freq: 25}
-checkpoint: {location: volume, keep: 2}
-compute: {nodes: 2, accelerator: GPU_8xH100, trainer_gpus: 8, rollout_gpus: 8}
-```
+Jobs are checked in beside each recipe as `jobs/<stage>.yaml`. Inside a job, the launcher
+resolves that recipe from the uploaded snapshot and builds the framework arguments. Stages
+exchange data through the run's volume directory. The [running guide](running-recipes.md)
+describes the stages and how to resume them.
 
-How `extends` resolves: the parent's path is relative to `recipes/`. Mappings merge recursively,
-a child's lists and scalars replace the parent's, and command-line overrides (`RFT_SET`) apply
-last. Unknown keys and cycles are errors. The resolved recipe is hashed, and the hash goes into
-the run record.
-
-Each stage of a recipe is one AI Runtime job, checked in as `jobs/<stage>.yaml` next to the
-recipe. Nothing is generated at submission. Inside the job, the launcher resolves the recipe from
-the uploaded code and writes the framework's arguments. Stages pass their outputs to each other
-through the run's directory on the volume. Training runs on the recipe's nodes, model staging and
-evaluation on one GPU node, and the other stages on a small A10 node.
+The packages are installed from the snapshot on every node before workers start. The framework
+itself comes from its image, or from the pinned miles source installed at startup.
 
 ## Run records
 
-The `compare` stage writes the run's record, `qualification.json`. It names everything the
-result depends on: the code (a commit and a hash of the sources), the recipe, the image, the model
-and tokenizer revisions, the data, the evaluation settings and the GPU layout. It also lists the
-checks the run passed:
+The comparison stage writes `qualification.json`, identifying the recipe, model, data, code,
+images, evaluation settings, hardware, and checks. `comparison.json` contains paired results and
+confidence intervals. See [Results and test coverage](records/README.md) for published examples.
 
-- **calibration** (judged tasks): the judge got every known case right;
-- **export**: the final checkpoint's Hugging Face weights are complete, and their content is
-  unchanged since the `export` stage hashed it;
-- **evaluated checkpoint**: the `eval` stage served that checkpoint;
-- **evaluations complete**: every planned evaluation episode is present, and each is scored or
-  explicitly an infrastructure failure;
-- **comparable**: the base and trained evaluations used the same questions and settings;
-- **leakage clean**: training and evaluation questions don't overlap, by id or by content;
-- **same code**: every stage ran the same code;
-- **parity** (where a recipe has one): the base model's evaluation agrees with a recorded
-  reference evaluation.
+A `measured` record describes the full recipe, allowing changes to seeds, baseline source,
+stages, and diagnostic logging. Other modifications, including a shorter smoke-test budget,
+produce `smoke-tested` when the checks pass. Neither label is a general certification: read the
+record's configuration, checks, and relevant framework limitations.
 
-The comparison pairs the two evaluations question by question. Its confidence intervals come from
-a bootstrap that resamples questions, because several samples of one question aren't independent.
+Comparisons must use the same base-model identity, questions, agent rules, scorer, and evaluation
+settings. Confidence intervals resample questions, not individual completions of the same
+question. Training probes are reported separately from held-out questions.
 
-A run is **measured** when it passed every check on the recipe as committed. Only the seeds, the
-list of stages, and a baseline borrowed from another run (`eval.baseline_run`) may differ. A run
-that passed every check with other changes, such as `--smoke`, is **smoke-tested**. A change to
-the task, the rules of an episode, the scorer, an adapter, a launcher or an image needs a new run.
-
-To publish a record, `python -m rft_cookbook.evidence.publish` replaces workspace paths and image
-registries with placeholders, and records the hash of every original file. Published records are
-in [`docs/records`](records/README.md).
-
-A comparison across frameworks compares recipes: each run is reported against its own baseline,
-unless the model, data, budgets, judge, evaluation and training budget all match. The two
-Qwen3.6 OfficeQA recipes are matched this way, and the miles run is compared with the verl run's
-baseline.
-
-## Packaging
-
-`rft-cookbook` and the adapters (`rft-verl`, `rft-miles`) are small Python packages. At the start
-of a job they are installed from the uploaded code with `pip install --no-deps` on every node,
-before Ray or any worker starts. Every process then imports the same code. They depend only on
-what the framework images already contain, and they never declare a framework as a dependency:
-frameworks come from their images.
+Publishing with `rft_cookbook.evidence.publish` replaces workspace details with placeholders and
+records the originals' hashes. Historical records retain the checks and hash formats that were
+available when they were produced.
 
 ## Testing
 
-| Tier | What it covers | Where it runs |
+| Test group | Purpose | Environment |
 |---|---|---|
-| 1. Unit | The rules of an episode, tools, the harness against a fake chat server, judges against fake endpoints, sandbox detection, run-record checks, the episode schema | CPU |
-| 2. Adapter contract | Each adapter turns recorded episodes into valid records, every adapter scores a recorded episode the same, attestations on truncated and retried episodes, invalid rewards never reach an update | CPU, with fake framework objects |
-| 3. Framework API | The adapters against the real pinned framework: hook signatures, base classes, configuration | CPU, with the pinned framework installed |
-| 4. Jobs and public safety | Every recipe resolves, its jobs match it, and no source contains a secret or workspace detail | CPU |
-| 5. GPU smoke | A short run of a recipe: two updates, restart and resume, export, evaluation of the export (`--smoke`) | AI Runtime |
-| 6. Full recipe | The full run, with its run record | AI Runtime |
+| Unit | Agent policy, tools, scorers, episode schema, and evidence accounting | CPU |
+| Adapter contract | Reward eligibility, token retention, and sample conversion | CPU |
+| Framework API | Hooks and configuration against pinned upstream code | CPU with framework source |
+| Recipe and packaging | Job consistency, package imports, and public-data checks | CPU |
+| GPU smoke | Short training, restart/resume, export, and evaluation | AI Runtime |
+| Full recipe | The declared training budget and held-out evaluation | AI Runtime |
 
-The CPU tiers are meant to run on every pull request. The GPU tiers are started by a maintainer
-from a reviewed commit, and never for pull requests from forks. The latest result of each tier is
-in [`docs/records`](records/README.md).
+[The CI workflow](../.github/workflows/ci.yml) defines the CPU environments and commands. GPU
+runs are maintainer-triggered, not executed on untrusted pull-request code. CPU tests do not
+validate GPU kernels or replace testing in the actual framework images.
 
 ## Public repository rules
 
-- `site.env` holds your workspace profile, volume root, images and secret names (never secret
-  values). It is gitignored and left out of the code uploaded to jobs.
-- The tests scan sources for credentials, e-mail addresses, workspace hosts, user paths and run
-  URLs.
-- Published records contain aggregates and per-question scores, and list what was replaced during
-  sanitization.
-- Datasets and corpora are downloaded when a run prepares its data; they aren't redistributed.
-- New code is under the repository license. Files derived from Apache-2.0 sources keep that
-  license, with attribution; [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md) lists them.
+Keep workspace settings in the gitignored `site.env`. Store secret references there, never
+secret values in source. Published evidence must be sanitized before committing it.
 
-## Roadmap
-
-- **slime**, as a third framework, then others on demand.
-- **verl through a Chat Completions gateway**, compared with the native agent loop on a fixed
-  checkpoint.
-- **GLM-5.3-Flash on OfficeQA at 64 GPUs**, which stops in its first update today (see the recipe).
+Datasets and corpora are downloaded during preparation rather than redistributed. Third-party
+source retains its original license and attribution; see
+[THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).

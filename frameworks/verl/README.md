@@ -1,43 +1,29 @@
-# verl adapter
+# Training with verl
 
-`rft_verl` runs cookbook tasks on [verl](https://github.com/verl-project/verl), using only verl's
-own extension points.
+The `rft_verl` adapter runs cookbook tasks on [verl](https://github.com/verl-project/verl).
+It uses verl's native tool-agent loop and checkpoint callback. See the
+[tested recipes](../../README.md#tested-recipes) for supported models and hardware.
 
-## How it plugs into verl
+## Supported configurations
 
-| What | verl extension point | Module |
-|---|---|---|
-| Running episodes | A `ToolAgentLoop` subclass, registered through `rollout.agent.agent_loop_config_path` | `agent_loop.CookbookAgentLoop` |
-| Reward | The loop scores each finished episode and sets `AgentLoopOutput.reward_score`, so verl skips its own reward loop | `agent_loop` |
-| Excluding a sample | The loop raises; verl's V1 replay buffer drops the prompt group and refills it | `agent_loop` |
-| Publishing checkpoints | `trainer.checkpoint_callback_class` (V1 trainer) | `checkpoint.PublishCheckpoint` |
-| Data | Parquet for `RLHFDataset`, whose `agent_name` routes each row to the cookbook loop | `data` |
-| Launch | `python -m verl.trainer.main_ppo` with the recipe's Hydra overrides, resolved inside the job | `render`, `launch`, `launch/node.sh` |
+Training uses verl's V1 trainer in `separate_async` mode, with a Megatron trainer and a separate
+vLLM rollout pool. Weights are sent to the rollout pool over NCCL after each update.
 
-## Supported setup
+The adapter supports one node or multiple nodes. On multiple nodes, each pool occupies whole
+nodes and checkpoints are saved directly to the volume. Packed sequences are enabled for the
+35B MoE recipes and disabled for the 2B quickstart. Asynchronous checkpoint saves are not supported.
 
-- verl's V1 trainer in `separate_async` mode: training runs on `compute.trainer_gpus`, and a
-  separate vLLM pool generates rollouts on `compute.rollout_gpus`. Weights go to the pool over
-  NCCL after each update.
-- The Megatron engine, through Megatron-Bridge, without dynamic batch sizes. Packed sequences are
-  used only where the recipe says the model supports them (`strategy.remove_padding`: on in the 35B
-  MoE recipes, off in the 2B quickstart).
-- One node, or several. With several nodes, each GPU pool fills whole nodes and checkpoints are
-  saved straight to the volume.
+## Versions
 
-Resolving a recipe fails for anything else. The older `experimental.fully_async_policy` path is not
-used.
+The image pins verl at `8718ca30a3f002f93b7c4fd99b9b2506718681bc`, with PyTorch 2.13,
+vLLM 0.30, Transformers 5.16.1, Megatron-Bridge 0.6.2, Megatron-Core 0.19.2, and Transformer
+Engine 2.16.1. See [`artifacts.lock`](image/artifacts.lock) and
+[`requirements.lock`](image/requirements.lock) for the full dependency pins.
 
-## Pinned versions
-
-verl 0.10.0.dev at commit `8718ca30a3f002f93b7c4fd99b9b2506718681bc`, PyTorch 2.13, vLLM 0.30,
-Transformers 5.16.1, Megatron-Bridge 0.6.2, Megatron-Core 0.19.2 and Transformer Engine 2.16.1.
-The full lists are in `image/artifacts.lock` and `image/requirements.lock`.
-
-The image applies one patch, `image/patch_verl_weight_chunks.py`. The pinned Megatron-Bridge
-exports some Qwen3.5 tensors with strides, and verl's weight-sync serializer needs them
-contiguous. The patch refuses to apply to any verl source but the pinned one. Remove it when the
-pin moves past the upstream fix and `check_verl_weight_chunks.py` passes without it.
+A small [weight-serialization patch](image/patch_verl_weight_chunks.py) makes strided tensors
+contiguous before transfer to vLLM. It checks the pinned source before applying. The associated
+[regression check](image/check_verl_weight_chunks.py) determines when the patch can be removed
+with a future upstream update.
 
 ## Building the image
 
@@ -46,44 +32,58 @@ bash frameworks/verl/image/build.sh rft-verl:<tag>
 databricks air images push -p <profile> --source rft-verl:<tag> --catalog <catalog> --schema <schema>
 ```
 
-The image is for linux/amd64 and is about 17 GB, under AI Runtime's 20 GB limit. The push stores
-it in your workspace's Artifact Registry as `<catalog>.<schema>.rft-verl:<tag>`; put that name in
-`site.env` (`RFT_VERL_IMAGE`), and the digest the push printed in `RFT_VERL_IMAGE_DIGEST` for the
-run record. The miles recipes use this image too, for their evaluation stages.
+The image targets linux/amd64 and is about 17 GB. Set `RFT_VERL_IMAGE` in `site.env` to the
+uploaded Unity Catalog image name, and `RFT_VERL_IMAGE_DIGEST` to its digest. miles recipes also
+use this image for evaluation.
 
-### Behind a proxy or a private package index
+### Private indexes and proxies
 
-The build downloads packages from PyPI and a few pinned wheels and source trees from GitHub. If
-your network needs it:
+- Set `PIP_INDEX_URL` when invoking the build to use a private package index. It is passed as a
+  BuildKit secret, not stored in image history.
+- Pass proxy options through `BUILD_ARGS`, for example
+  `BUILD_ARGS="--build-arg HTTPS_PROXY=http://proxy:3128"`.
+- For a TLS-intercepting proxy, put its CA bundle (`*.crt` or `*.pem`) in `image/certs/`.
+- For offline artifacts, place pinned wheels under `image/vendor/wheels/` and pinned source
+  trees under `image/vendor/src/<name>/`. Each source tree needs a `.voa-commit` file containing
+  its revision. The build verifies wheel hashes and source revisions against its locks.
 
-- `PIP_INDEX_URL=<index> bash frameworks/verl/image/build.sh ...` uses your package index. The
-  URL is passed as a BuildKit secret, so it isn't recorded in the image history.
-- `BUILD_ARGS="--build-arg HTTPS_PROXY=http://proxy:3128"` passes extra flags to `docker build`.
-- Behind a TLS-intercepting proxy, put the proxy's CA bundle (`*.crt` or `*.pem`) in
-  `frameworks/verl/image/certs/`. The image then trusts it. The folder is gitignored.
-- If the build can't reach GitHub, download the pinned artifacts on the host into
-  `frameworks/verl/image/vendor/` (gitignored), and the build uses them instead:
-  - `vendor/wheels/<file>`: the wheels listed in `image/artifacts.lock`, under the file name of
-    their URL. Each is checked against the sha256 in the lock.
-  - `vendor/src/<name>/`: the source trees of `megatron-core` and `verl` at their pinned commits,
-    each with its commit hash in a `.voa-commit` file. A tree at any other commit stops the build.
+The certificate and vendor directories are gitignored. Do not commit private certificates or
+package-index credentials.
 
-## Known limits
+## How the adapter works
 
-- **Checkpoints are saved synchronously.** With asynchronous saves, verl calls the post-save hook
-  before the checkpoint is on disk, so `PublishCheckpoint` refuses `checkpoint.async_save`.
-- **One failure drops a whole group.** If one episode of a GRPO group fails (an infrastructure
-  error or an invalid score), the whole group leaves the update and verl refills it. The
-  episode records and verl's `failure` counts show how often this happens.
-- **A broken setup retries until stopped.** Because verl refills failed groups, an error
-  that fails every episode (for example, data prepared for another task version) would repeat
-  until the job times out. `prep` checks that the data carries the task's prompt, and the loop
-  stops the run after `train.max_consecutive_exclusions` failures in a row.
-- **verl's own `ToolAgentLoop` shows the model simplified tool schemas.** It keeps only the
-  `type`, `description` and `enum` of each parameter, so nested fields disappear. The cookbook
-  loop shows the full schemas. `eval.schema_view: verl-0.10-properties` reproduces verl's view for
-  diagnostics.
-- **The drivers parse differently.** verl's tool-call parsers drop calls they can't parse, while
-  the Chat Completions harness used for evaluation sees whatever the serving parser returns. The
-  decisions after parsing are the same, as
-  [`tests/test_drivers_agree.py`](tests/test_drivers_agree.py) checks.
+| Responsibility | Extension | Implementation |
+|---|---|---|
+| Run and score an episode | `ToolAgentLoop` subclass, registered in the agent-loop config | [`agent_loop.py`](rft_verl/agent_loop.py) |
+| Exclude an invalid sample | V1 replay-buffer group exclusion | [`agent_loop.py`](rft_verl/agent_loop.py) |
+| Publish a checkpoint | `trainer.checkpoint_callback_class` | [`checkpoint.py`](rft_verl/checkpoint.py) |
+| Prepare framework inputs | Canonical task rows to `RLHFDataset` parquet | [`data.py`](rft_verl/data.py) |
+| Resolve and launch a recipe | Hydra overrides for `verl.trainer.main_ppo` | [`render.py`](rft_verl/render.py), [`launch.py`](rft_verl/launch.py) |
+
+The framework owns token IDs, loss masks, and log-probabilities. The adapter records the episode
+that received the reward and checks that collection retained its final answer.
+
+## Known limitations
+
+- **An invalid sample drops its group.** verl refills the whole GRPO group. Repeated exclusions
+  stop the run instead of allowing an unhealthy dependency to retry indefinitely.
+- **Parsing depends on the driver.** verl's parser can drop malformed calls that a serving
+  endpoint exposes differently. The shared policy makes the same decisions after parsing;
+  [driver-agreement tests](tests/test_drivers_agree.py) cover those decisions.
+- **Schema views matter.** The cookbook loop uses full tool schemas. Set
+  `eval.schema_view=verl-0.10-properties` only to reproduce the simplified schemas of verl's
+  default loop for a diagnostic comparison.
+
+## Testing
+
+The adapter tests need the pinned verl source and a real Qwen3.5 tokenizer, but no GPU.
+The `verl` job in [the CI workflow](../../.github/workflows/ci.yml) lists the CPU dependencies
+and tokenizer download. With that environment installed:
+
+```bash
+pip install --no-deps -e . -e frameworks/verl
+RFT_TEST_TOKENIZER=<tokenizer-directory> pytest frameworks/verl/tests
+```
+
+These tests exercise the actual `ToolAgentLoop` and Hydra configuration. A GPU smoke test is
+still required to check CUDA kernels, weight transfer, and checkpoint behavior in the image.

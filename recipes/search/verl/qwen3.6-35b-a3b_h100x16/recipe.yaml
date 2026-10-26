@@ -1,21 +1,8 @@
-# Agentic search on verl: Qwen3.6-35B-A3B answers MuSiQue multi-hop questions by searching a
-# Databricks Vector Search index of encyclopedia passages. Exact-match reward, no judge. Two nodes of
-# 8 H100s: one trains, one serves.
-# Held out: 500 MuSiQue validation questions, stratified by hop count. The index is your workspace's
-# (RFT_VS_INDEX in site.env); rft_cookbook.tasks.search describes what it must contain.
-#
-# Status: measured (run search-q36-01, docs/records/search-q36-01): 50 updates in about 2.5 hours;
-# held-out exact match 28.2% -> 37.4% (+9.2 points, 95% CI +5.2 to +13.4).
-# Most of the gain comes from answering more often. The trained model answers 87% of the held-out
-# questions (the base model 48%: 223 of its 500 episodes reach the turn limit), after fewer searches
-# (5.7 tool calls against 10.0). Its answers are less precise: 43% are right, against 58.5%.
-#
-# Why 16 turns: with 12, the base model reached the limit in half its episodes, most of them still
-# searching. The longest of those used about 25,600 of the 43,008-token context, about 1,000 tokens a
-# turn, so 16 turns fit.
-# The reward and batch come from an earlier prototype on Qwen3.5-35B-A3B, with the same held-out
-# questions and index: a pure exact-match reward (a bonus for retrieving the answer diluted it), 32
-# trajectories an update in groups of 16, and learning rate 2e-6.
+# Multi-hop search with Qwen3.6-35B-A3B on verl: 16 H100s (8 train, 8 serve).
+# Uses a 16-turn agent and exact-match reward, evaluated on 500 held-out MuSiQue questions.
+# Set RFT_VS_INDEX in site.env. rft_cookbook.tasks.search describes the required corpus and schema;
+# the corpus includes the held-out questions' source passages and distractors.
+# See README.md for results and the trade-off between answer rate and answer precision.
 extends: agentic/verl
 description: Agentic search (MuSiQue) on verl, Qwen3.6-35B-A3B, Databricks Vector Search.
 task: search

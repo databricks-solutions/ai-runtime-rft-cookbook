@@ -1,19 +1,9 @@
-# OfficeQA on miles with the full GLM-5.3-Flash (about 300B parameters, all of them trained), on
-# eight nodes of 8 B300s. Training and serving share the GPUs, in upstream's 64-GPU layout (TP8, PP4,
-# EP16 training; eight SGLang engines of 8 GPUs). The task, data, budgets, judge and sandbox are
-# those of the Qwen3.6 recipes: episodes of up to 128 turns in a 98,304-token context.
-# The judge is the hosted GLM-5.3-Flash, the same model family as the policy. Training keeps
-# upstream's algorithm for this model, without a KL term: a reference copy of a 300B model would not
-# fit beside it.
-#
-# Status: experimental. The recipe measures whether long episodes fit at all: upstream miles can't
-# split GLM-5.3's sequences across GPUs (its DSA indexer doesn't support context parallelism), so
-# each long episode is one micro-batch on one TP8 group.
-# Both attempts (2026-10-23) stopped in the first update, with a CUDA illegal memory access in the
-# trainer's first forward pass (during fla's causal_conv1d autotuning). The faulting kernel isn't
-# identified yet. The 4-layer slice trained on 24,576-token sequences (with synchronous CUDA
-# launches), and the 32-GPU recipe trains the full model on short episodes. So the cause lies in long
-# episodes on the full model, in the 64-GPU layout, or in a race that synchronous launches hide.
+# Experimental OfficeQA training with full GLM-5.3-Flash on 64 B300s.
+# Training and serving share the GPUs (TP8, PP4, EP16; eight 8-GPU SGLang engines).
+# Uses the Qwen recipes' task, judge and strict sandbox, with a 98,304-token context.
+# No KL reference model is loaded. GLM's DSA indexer does not support context parallelism.
+# Known limitation: a CUDA illegal memory access during the first training forward pass prevents
+# completion. This is not a working end-to-end recipe; use Qwen3.6 for a tested OfficeQA workflow.
 extends: agentic/miles
 description: OfficeQA on upstream miles, GLM-5.3-Flash, 8 nodes (long-context measurement).
 task: officeqa

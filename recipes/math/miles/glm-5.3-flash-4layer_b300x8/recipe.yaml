@@ -1,12 +1,7 @@
-# Smoke test on miles: a 4-layer slice of GLM-5.3-Flash solves math problems with a calculator, on
-# one node of 8 B300s. Training and serving share the GPUs, in upstream's layout for the slice (TP2,
-# PP2, EP2 training; two SGLang engines of 4 GPUs).
-# The slice keeps 4 of the model's 45 layers, so it can't learn anything useful. The recipe checks
-# the plumbing (episodes through the session server, scoring, two updates with weight sync, a
-# published checkpoint), not a result.
-#
-# Status: ran (2026-10-23, before run records existed): two rollouts of 16 episodes, two updates,
-# and a published 337 GB checkpoint.
+# Math integration test on miles: a 4-layer GLM-5.3-Flash slice on 8 B300s.
+# Training and serving share the GPUs (TP2, PP2, EP2; two 4-GPU SGLang engines).
+# Two training updates and checkpoint publication have been tested. Allow about 337 GB per save.
+# This slice tests the workflow, not answer quality. See README.md for tested configurations.
 extends: agentic/miles
 description: Math on upstream miles, GLM-5.3-Flash 4-layer slice, 1 node (technical smoke).
 task: math

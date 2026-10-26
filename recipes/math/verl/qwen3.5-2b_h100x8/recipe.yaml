@@ -1,10 +1,7 @@
-# Math quickstart: Qwen3.5-2B solves MATH problems (levels 1-3) with a calculator, on one node of 8
-# H100s (4 train, 4 serve), and is evaluated on MATH-500 before and after training.
-# The recipe checks the plumbing, not learning: two updates with a checkpoint each, export, and an
-# evaluation of the export. A run takes about 50 minutes.
-#
-# Status: measured (run math-2b-02, docs/records/math-2b-02): MATH-500 61.8% -> 62.0% (+0.2 points,
-# 95% CI -2.8 to +3.2), as expected after two updates.
+# Math quickstart: Qwen3.5-2B on 8 H100s (4 train, 4 serve).
+# Trains on MATH levels 1-3 with a calculator, then evaluates on MATH-500.
+# Two updates exercise the complete workflow in about 50 minutes; they are not a quality benchmark.
+# Evaluation results and supporting evidence are linked from README.md.
 extends: agentic/verl
 description: Math quickstart on verl, Qwen3.5-2B, 1 node.
 task: math

@@ -1,18 +1,8 @@
-# OfficeQA on verl: Qwen3.5-35B-A3B answers questions about U.S. Treasury Bulletins with search,
-# read and compute tools, and cites the evidence for its answer. A hosted GLM-5.3-Flash judge checks
-# the evidence. Two nodes of 8 H100s: one trains, one serves.
-#
-# Status: superseded by recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, the same recipe with the
-# newer model. Kept with its results; it wasn't rerun on the final code, so it has no run record.
-# Two runs of 100 updates (2026-10-22, two training seeds): held-out supported pass@1 15.1% -> 22.1%
-# (+7.0 points, 95% CI +1.2 to +13.4) and 15.1% -> 20.9% (+5.8, 95% CI 0.0 to +12.2).
-#
-# The parity stage compares the base model with an earlier measured baseline
-# (reference_baseline.json), question by question, before training. That baseline saw verl's
-# simplified tool schemas (frameworks/verl/README.md), so parity runs on its own with that view:
-# RFT_SET="eval.schema_view=verl-0.10-properties", stages baseline_eval and parity. It agreed. The
-# training run shows the full schemas and skips parity; its base model scores 15.1% held-out,
-# against the reference's 8.7%.
+# Historical OfficeQA recipe with Qwen3.5-35B-A3B on 16 H100s (8 train, 8 serve).
+# Superseded by recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16; use that recipe for new experiments.
+# The optional parity reference uses simplified tool schemas. For a parity-only comparison,
+# select eval.schema_view=verl-0.10-properties and run baseline_eval plus parity separately.
+# Do not compare that reference with a full-schema evaluation.
 extends: agentic/verl
 description: OfficeQA on verl, Qwen3.5-35B-A3B, hosted judge.
 task: officeqa
@@ -97,4 +87,4 @@ compute:
   trainer_gpus: 8
   rollout_gpus: 8
   timeout_minutes: 240
-  train_timeout_minutes: 1080   # the measured run trained for about 9.5 hours
+  train_timeout_minutes: 1080   # includes startup, checkpoint writes and training
