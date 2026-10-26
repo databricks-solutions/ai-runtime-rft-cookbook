@@ -24,6 +24,7 @@ Each run folder holds:
 | [`math-2b-02`](math-2b-02/qualification.json) | `math/verl/qwen3.5-2b_h100x8` | measured |
 | [`search-q36-smoke-02`](search-q36-smoke-02/qualification.json) | `search/verl/qwen3.6-35b-a3b_h100x16`, `--smoke`, 12 turns | smoke-tested |
 | [`math-2b-smoke-01`](math-2b-smoke-01/qualification.json) | `math/verl/qwen3.5-2b_h100x8`, `--smoke` | smoke-tested |
+| [`math-2b-smoke-02`](math-2b-smoke-02/qualification.json) | `math/verl/qwen3.5-2b_h100x8`, `--smoke`, image from Unity Catalog | smoke-tested |
 
 The GLM-5.3-Flash recipes ran before run records existed; their recipe headers describe their
 runs.
