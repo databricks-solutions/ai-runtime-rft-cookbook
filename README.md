@@ -76,16 +76,14 @@ What the statuses mean:
 
 - A Databricks workspace with AI Runtime, and GPUs: H100 nodes for the Qwen recipes, B300 nodes
   for GLM-5.3-Flash.
-- The Python-based AI Runtime CLI, `air` (the `databricks-air` package), and a Databricks CLI
-  profile for the workspace. Databricks now calls this CLI legacy. Its successor, `databricks air`
-  in the Databricks CLI, takes a different workload configuration, and the cookbook doesn't
-  support it yet. See [AI Runtime CLI](https://docs.databricks.com/aws/en/machine-learning/ai-runtime/cli).
+- The [Databricks CLI](https://docs.databricks.com/aws/en/machine-learning/ai-runtime/cli), whose
+  `databricks air` commands submit and watch the jobs, and a CLI profile for the workspace.
 - A Unity Catalog volume for data, models, checkpoints and evaluations. Plan on a lot of space for
   the 35B recipes: each checkpoint is about 0.5 TB, and they keep the newest two.
 - A Hugging Face token, stored as a Databricks secret.
-- The framework's container image, built from `frameworks/<framework>/image` and registered with
-  AI Runtime. See [frameworks/verl](frameworks/verl/README.md) and
-  [frameworks/miles](frameworks/miles/README.md). miles recipes need the verl image too: every
+- The framework's container image, built from `frameworks/<framework>/image` and pushed into your
+  workspace's Artifact Registry with `databricks air images push`. See
+  [frameworks/verl](frameworks/verl/README.md) and [frameworks/miles](frameworks/miles/README.md). miles recipes need the verl image too: every
   recipe evaluates with vLLM from the verl image, so results compare across frameworks.
 - For agentic search, a Vector Search index of the corpus. The cookbook doesn't build it;
   [`rft_cookbook/tasks/search`](src/rft_cookbook/tasks/search/__init__.py) describes its contents
@@ -96,15 +94,16 @@ What the statuses mean:
 The math recipe is the smallest. It runs on one node of 8 H100s in about 50 minutes and exercises
 every stage: data preparation, evaluation, training, checkpointing, export and comparison.
 
-1. Build the verl image, push it to your registry and register it with AI Runtime
+1. Build the verl image and push it into your workspace
    ([details](frameworks/verl/README.md#building-the-image)):
 
    ```bash
-   bash frameworks/verl/image/build.sh <registry>/<repository>:<tag>
+   bash frameworks/verl/image/build.sh rft-verl:<tag>
+   databricks air images push -p <profile> --source rft-verl:<tag> --catalog <catalog> --schema <schema>
    ```
 
 2. Copy `site.example.env` to `site.env` and fill in your workspace profile, volume root, image
-   and Hugging Face secret. `site.env` is gitignored.
+   (`<catalog>.<schema>.rft-verl:<tag>`) and Hugging Face secret. `site.env` is gitignored.
 
 3. Install the cookbook on your workstation and run the recipe:
 
@@ -149,9 +148,9 @@ and run:
 
 ```bash
 source site.env
-air run -f recipes/math/verl/qwen3.5-2b_h100x8/jobs/prep.yaml -p "$RFT_PROFILE" --override \
-  env_variables.RFT_RUN_ID=math-01 env_variables.RFT_VOLUME_ROOT="$RFT_VOLUME_ROOT" \
-  environment.docker_image.url="$RFT_VERL_IMAGE" secrets.HF_TOKEN="$RFT_HF_TOKEN_SECRET"
+databricks air run -f recipes/math/verl/qwen3.5-2b_h100x8/jobs/prep.yaml -p "$RFT_PROFILE" \
+  --override env_variables.RFT_RUN_ID=math-01 --override env_variables.RFT_VOLUME_ROOT="$RFT_VOLUME_ROOT" \
+  --override environment.unity_catalog_image="$RFT_VERL_IMAGE" --override secrets.HF_TOKEN="$RFT_HF_TOKEN_SECRET"
 ```
 
 When you submit stages yourself:

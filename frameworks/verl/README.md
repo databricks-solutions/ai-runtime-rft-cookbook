@@ -42,12 +42,14 @@ pin moves past the upstream fix and `check_verl_weight_chunks.py` passes without
 ## Building the image
 
 ```bash
-bash frameworks/verl/image/build.sh <registry>/<repository>:<tag>
+bash frameworks/verl/image/build.sh rft-verl:<tag>
+databricks air images push -p <profile> --source rft-verl:<tag> --catalog <catalog> --schema <schema>
 ```
 
-The image is for linux/amd64 and is about 17 GB. Push it, put its digest in `site.env`
-(`RFT_VERL_IMAGE`), and register it with AI Runtime. The miles recipes use this image too, for
-their evaluation stages.
+The image is for linux/amd64 and is about 17 GB, under AI Runtime's 20 GB limit. The push stores
+it in your workspace's Artifact Registry as `<catalog>.<schema>.rft-verl:<tag>`; put that name in
+`site.env` (`RFT_VERL_IMAGE`), and the digest the push printed in `RFT_VERL_IMAGE_DIGEST` for the
+run record. The miles recipes use this image too, for their evaluation stages.
 
 ### Behind a proxy or a private package index
 

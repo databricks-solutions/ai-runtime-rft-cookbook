@@ -1,12 +1,12 @@
 """AI Runtime jobs and the run's plan of paths.
 
 A recipe's jobs are checked in next to it, one per stage (`jobs/<stage>.yaml`). A job names its
-recipe in `env_variables.RFT_RECIPE`; `air run --override` fills in what belongs to a workspace
-and a run (`JOB_ENV`, the image, secrets):
+recipe in `env_variables.RFT_RECIPE`; `databricks air run --override` fills in what belongs to a
+workspace and a run (`JOB_ENV`, the image, secrets), one field per `--override`:
 
-    air run -f recipes/math/verl/qwen3.5-2b_h100x8/jobs/train.yaml -p <profile> --override \
-        env_variables.RFT_RUN_ID=math-2b-01 env_variables.RFT_VOLUME_ROOT=<volume root> \
-        environment.docker_image.url=<image>
+    databricks air run -f recipes/math/verl/qwen3.5-2b_h100x8/jobs/train.yaml -p <profile> \
+        --override env_variables.RFT_RUN_ID=math-2b-01 --override env_variables.RFT_VOLUME_ROOT=<volume root> \
+        --override environment.unity_catalog_image=<catalog>.<schema>.<image>:<tag>
 
 Inside the job the launcher reads these back (`from_job_env`) and resolves the recipe from the
 code snapshot. `plan(recipe, site, run_id)` fixes every durable location of a run from the
@@ -23,7 +23,7 @@ from collections.abc import Mapping
 from typing import Any
 
 SNAPSHOT_PATHS = ["pyproject.toml", "README.md", "src", "frameworks", "recipes"]
-# filled in per run with `air run --override env_variables.<name>=...`
+# filled in per run with `databricks air run --override env_variables.<name>=...`
 JOB_ENV = {"RFT_RUN_ID": "the run id", "RFT_VOLUME_ROOT": "the durable root (a Unity Catalog volume)"}
 # workspace resources a task may use, filled in the same way where its jobs name them: name -> plan key
 SITE_ENV = {"RFT_VS_INDEX": "vector_search_index"}   # the Vector Search index agentic search queries

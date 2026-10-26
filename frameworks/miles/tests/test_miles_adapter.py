@@ -397,10 +397,10 @@ def test_the_checked_in_jobs_match_the_recipe(ref):
         assert job["command"] == f"bash ${{CODE_SOURCE_PATH}}/{LAUNCHER} {stage}"
         env = job["env_variables"]
         assert env["RFT_RECIPE"] == ref and all(env[name].startswith("<") for name in JOB_ENV)
-        assert job["environment"]["docker_image"]["url"] == expected["image"], stage
-        snapshot = job["code_source"]["snapshot"]
-        assert (path.parent / snapshot["root_path"]).resolve() == ROOT.parent
-        assert snapshot["include_paths"] == SNAPSHOT_PATHS
+        assert job["environment"] == {"unity_catalog_image": expected["image"]}, stage
+        code = job["code_source"]   # `databricks air`: the code's root, relative to the job's directory
+        assert (path.parent / code["root_path"]).resolve() == ROOT.parent
+        assert code["include_paths"] == SNAPSHOT_PATHS
         assert job["compute"] == {"num_accelerators": expected["gpus"], "accelerator_type": expected["accelerator"]}, stage
         assert job["timeout_minutes"] == expected["timeout_minutes"] and job["max_retries"] == 0, stage
         # B300 nodes have no /local_disk0: their scratch moves to /tmp; H100 nodes keep it there

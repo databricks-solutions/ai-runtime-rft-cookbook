@@ -46,11 +46,12 @@ reference don't work on the AI Runtime base, which lacks their system libraries:
 all-reduce, some NVSHMEM bootstraps, and video decoding.
 
 ```bash
-bash frameworks/miles/image/build.sh <registry>/<repository>:<tag>
+bash frameworks/miles/image/build.sh rft-miles:<tag>
+databricks air images push -p <profile> --source rft-miles:<tag> --catalog <catalog> --schema <schema>
 ```
 
-Push the image, put its digest in `site.env` (`RFT_MILES_IMAGE`), and register it with AI
-Runtime. The build checks that the reference image was built from the pinned miles commit, so move
+Put the image's Unity Catalog name, `<catalog>.<schema>.rft-miles:<tag>`, in `site.env`
+(`RFT_MILES_IMAGE`), and the digest the push printed in `RFT_MILES_IMAGE_DIGEST`. The build checks that the reference image was built from the pinned miles commit, so move
 the pin and the image together.
 
 ## Model launchers

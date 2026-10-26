@@ -1,4 +1,5 @@
-"""Run a recipe's stages as AI Runtime jobs, in order, from a workstation with the `air` CLI.
+"""Run a recipe's stages as AI Runtime jobs, in order, from a workstation with the Databricks CLI
+(`databricks air`).
 
     python -m rft_cookbook.air.chain <recipe> <run id> [--set "train.seed=7"] [--smoke] [--site site.env]
 
@@ -38,7 +39,20 @@ STEPS = {"verl": ("train.total_training_steps", "train.save_freq"),
 
 def _run(argv: list[str]) -> str:
     done = subprocess.run(argv, capture_output=True, text=True)
-    return done.stdout + done.stderr   # air prints the job id on either
+    return done.stdout + done.stderr   # the error, if any, is on stderr
+
+
+def _answer(out: str) -> dict | None:
+    """The `data` of `databricks air ... -o json`: a JSON document on lines of its own, which other
+    lines (each override it applied) may precede."""
+    lines = out.splitlines()
+    for i, line in enumerate(lines):
+        if line.startswith("{"):
+            try:
+                return json.JSONDecoder().raw_decode("\n".join(lines[i:]))[0]["data"]
+            except (ValueError, KeyError, TypeError):
+                continue
+    return None
 
 
 def read_site(path: Path) -> dict[str, str]:
@@ -102,8 +116,10 @@ class Chain:
         # a workspace that runs an image by its tag names the digest the tag resolves to, for the record
         sets = [f"env_variables.RFT_RUN_ID={self.run_id}",
                 f"env_variables.RFT_VOLUME_ROOT={self.site['RFT_VOLUME_ROOT']}",
-                f"environment.docker_image.url={image}", f"env_variables.RFT_SET={shlex.join(overrides)}",
+                f"environment.unity_catalog_image={image}",
                 f"env_variables.RFT_IMAGE={self.site.get(key + '_DIGEST') or image}"]
+        if overrides:   # an empty value would unset the job's RFT_SET rather than empty it
+            sets.append(f"env_variables.RFT_SET={shlex.join(overrides)}")
         if self.commit:
             sets.append(f"env_variables.RFT_CODE_COMMIT={self.commit}")
         if re.search(r"^secrets:", text, re.M):
@@ -113,20 +129,17 @@ class Chain:
                 if not self.site.get(name):
                     raise RuntimeError(f"{stage} needs {name}: set it in site.env")
                 sets.append(f"env_variables.{name}={self.site[name]}")
-        out = self.run(["air", "run", "-f", str(path), "-p", self.site["RFT_PROFILE"], "--override", *sets])
-        found = re.search(r"Job Run ID: (\d+)", out)
-        if not found:
+        out = self.run(["databricks", "air", "run", "-f", str(path), "-p", self.site["RFT_PROFILE"], "-o", "json",
+                        *(arg for value in sets for arg in ("--override", value))])
+        job = (_answer(out) or {}).get("run_id")
+        if not job:
             raise RuntimeError(f"submitting {stage} failed: {out[-500:]}")
-        return found.group(1)
+        return str(job)
 
     def status(self, job: str) -> str:
-        out = self.run(["air", "get", "run", job, "-p", self.site["RFT_PROFILE"], "--json"])
-        for line in out.splitlines():
-            try:
-                return json.loads(line)["data"]["status"]
-            except (ValueError, KeyError, TypeError):
-                continue
-        return "UNKNOWN"   # the API did not answer: asked again at the next poll
+        out = self.run(["databricks", "air", "get", job, "-p", self.site["RFT_PROFILE"], "-o", "json"])
+        # no answer (the API did not respond): asked again at the next poll
+        return (_answer(out) or {}).get("status") or "UNKNOWN"
 
     def go(self, *, smoke: bool = False) -> None:
         stages, baseline, failures = self.stages(), None, []

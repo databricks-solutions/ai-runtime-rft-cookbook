@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # The miles image: upstream miles' reference image, moved onto the Databricks AI Runtime base.
 #
-#   bash frameworks/miles/image/build.sh <registry>/<repository>:<tag>
+#   bash frameworks/miles/image/build.sh <image>:<tag>
 #
 # The reference is the image miles' CI builds for a release (CUDA 13.0, PyTorch 2.14, SGLang's
 # sglang-miles branch, Megatron-LM's miles-main). It is 41 GB, twice AI Runtime's 20 GB image limit

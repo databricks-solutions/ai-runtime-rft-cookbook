@@ -214,7 +214,8 @@ where each lives, and how to tell that each is complete.
 | Resumed with | `trainer.resume_mode=resume_path` | `--load` |
 
 A 35B checkpoint is about 0.5 TB (70 GB of weights, the rest optimizer state). Those recipes
-check sizes instead of hashing every file (`hash_files: false`), and keep the newest two.
+don't hash files as they publish (`hash_files: false`), which would slow down every save; the
+`export` stage hashes the final checkpoint's weights instead. They keep the newest two.
 
 ## Recipes
 
@@ -254,8 +255,8 @@ and tokenizer revisions, the data, the evaluation settings and the GPU layout. I
 checks the run passed:
 
 - **calibration** (judged tasks): the judge got every known case right;
-- **export**: the final checkpoint's Hugging Face weights are complete, and unchanged since the
-  `export` stage checked them (for recipes that don't hash every file, by file names and sizes);
+- **export**: the final checkpoint's Hugging Face weights are complete, and their content is
+  unchanged since the `export` stage hashed it;
 - **evaluated checkpoint**: the `eval` stage served that checkpoint;
 - **evaluations complete**: every planned evaluation episode is present, and each is scored or
   explicitly an infrastructure failure;

@@ -59,7 +59,7 @@ def test_inconsistent_recipes_do_not_resolve(tmp_path, override, message):
 
 
 def test_a_job_resolves_its_run_from_its_environment(tmp_path, monkeypatch):
-    """A checked-in job names its recipe; `air run --override` gives the run id and volume root."""
+    """A checked-in job names its recipe; `databricks air run --override` gives the run id and volume root."""
     from rft_verl import launch
 
     monkeypatch.setenv("RFT_RECIPE", RECIPE)

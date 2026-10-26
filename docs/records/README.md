@@ -28,6 +28,11 @@ Each run folder holds:
 The GLM-5.3-Flash recipes ran before run records existed; their recipe headers describe their
 runs.
 
+In the records of the 35B runs above (`search-q36-*` and `oqa-q36-*`), the export hash
+(`training.weights_sha256`) covers only the names and sizes of the weight files, so runs of one
+model share it. Newer records hash the content of every weight file, and say so
+(`training.weights_hash: content`).
+
 ## Test results (2026-10-26)
 
 The [testing tiers](../architecture.md#testing) are described in the architecture. GitHub Actions
