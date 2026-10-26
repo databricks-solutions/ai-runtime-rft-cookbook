@@ -119,6 +119,21 @@ def test_incomplete_hf_weights_are_recorded_at_publish_and_retention_keeps_the_l
     assert [p.step for p in store.list()] == [1, 3]
 
 
+def test_the_export_hash_covers_the_weights_content_when_the_bundle_was_published_without_hashes(tmp_path):
+    def exported(root: Path, hash_files: bool, fill: bytes) -> dict:
+        store = CheckpointStore(root, hash_files=hash_files)
+        bundle = native_save(root, 100)
+        for shard in (Path(bundle.root) / "actor" / "model" / "huggingface").glob("*.safetensors"):
+            shard.write_bytes(fill * shard.stat().st_size)   # same names and sizes, other weights
+        assert store.publish(bundle).status == "published"
+        return store.export(store.latest())
+
+    one, other = exported(tmp_path / "a", False, b"a"), exported(tmp_path / "b", False, b"b")
+    assert one["weights_sha256"] != other["weights_sha256"]
+    # hashed when published or when exported: the same weights give the same hash
+    assert exported(tmp_path / "c", True, b"a")["weights_sha256"] == one["weights_sha256"]
+
+
 def test_the_store_records_its_retention(tmp_path):
     store = CheckpointStore(tmp_path / "volume")
     assert store.retention() is None

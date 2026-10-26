@@ -143,7 +143,10 @@ def record(recipe: dict[str, Any], paths: dict[str, Any], comparison: dict[str, 
                                                            "sampling", "serving", "schema_view", "settings")},
                        "baseline": paths["baseline_dir"], "trained": served},
         "training": {"published": exported.get("name"), "step": exported.get("step"),
-                     "weights_sha256": exported.get("weights_sha256")},
+                     "weights_sha256": exported.get("weights_sha256"),
+                     # "content": a hash of every weight file; absent in records from before it was
+                     # (their recipes without file hashes hashed shard names and sizes only)
+                     "weights_hash": exported.get("weights_hash")},
         "topology": recipe.get("compute"),
         "checks": checks,
         "result": {"mean_difference": summary.get("mean_difference"), "bootstrap_95": summary.get("bootstrap_95"),

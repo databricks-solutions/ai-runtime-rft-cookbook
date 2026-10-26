@@ -24,6 +24,7 @@ import json
 import os
 import shutil
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
@@ -205,12 +206,18 @@ class CheckpointStore:
         weights = sorted(p for p in hf.iterdir() if p.suffix == ".safetensors")
         rel = Path(published.manifest["bundle"]["hf_path"])
         by_path = {f["path"]: f for f in published.manifest["files"]}
+        hashes = {w: (by_path.get(str(rel / w.name)) or {}).get("sha256") for w in weights}
+        # a bundle published without file hashes (hash_files: false) has its weights hashed here, so
+        # that two checkpoints of one model, with shards of the same names and sizes, never match
+        unhashed = [w for w, sha in hashes.items() if not sha]
+        if unhashed:
+            with ThreadPoolExecutor(max_workers=min(8, len(unhashed))) as pool:
+                hashes.update(zip(unhashed, pool.map(_sha256, unhashed)))
         digest = hashlib.sha256()
         for weight in weights:
-            entry = by_path.get(str(rel / weight.name))
-            digest.update(f"{weight.name}:{entry.get('sha256') if entry else weight.stat().st_size}\n".encode())
+            digest.update(f"{weight.name}:{hashes[weight]}\n".encode())
         return {"step": published.step, "path": str(hf), "weights": [w.name for w in weights],
-                "weights_sha256": digest.hexdigest()}
+                "weights_sha256": digest.hexdigest(), "weights_hash": "content"}
 
     def retain(self, keep_last: int, keep_steps: set[int] | None = None) -> list[int]:
         """Delete published bundles beyond the newest `keep_last`, except `keep_steps` and the newest
