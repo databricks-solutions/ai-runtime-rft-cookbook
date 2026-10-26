@@ -65,3 +65,16 @@ def test_prep_writes_the_system_prompt_of_the_recipes_budgets(tmp_path, monkeypa
     monkeypatch.setattr(launch, "prepare_data", lambda recipe, paths: rows)
     launch.prep(recipe, paths, out)
     assert "64" in pd.read_parquet(paths["train_parquet"])["prompt"][0][0]["content"]
+
+
+def test_a_recipe_that_changes_the_prompt_does_not_overwrite_another_runs_parquet(tmp_path):
+    def paths(run_id, overrides):
+        out = resolve_run("search/verl/qwen3.6-35b-a3b_h100x16", site={"volume_root": str(tmp_path / "volume")},
+                          run_id=run_id, overrides=overrides, out=tmp_path / run_id)
+        return launch._load(out)[1]
+
+    default, more_turns, again = (paths("search-a-01", []), paths("search-b-01", ["agent.max_turns=20"]),
+                                  paths("search-c-01", []))
+    assert default["data_dir"] == more_turns["data_dir"]   # the task's rows are prepared once
+    assert default["train_parquet"] != more_turns["train_parquet"]
+    assert default["train_parquet"] == again["train_parquet"]

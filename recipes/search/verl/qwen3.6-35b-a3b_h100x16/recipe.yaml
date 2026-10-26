@@ -3,14 +3,18 @@
 # Exact-match reward, no judge. Held out: 500 MuSiQue validation questions, stratified by hop count
 # (rft_cookbook.tasks.search.data). The index is the workspace's: its jobs leave RFT_VS_INDEX for
 # site.env, and the corpus it was built from is described in rft_cookbook.tasks.search.
-# Status: smoke-tested (qualification record of run search-q36-smoke-02, 2026-10-26: the runner's
-# --smoke, 2 updates and a resumed third). Held-out exact match 25.4% -> 30.2% (+4.8 points, 95%
+# Status: smoke-tested with 12 turns (qualification record of run search-q36-smoke-02, 2026-10-26: the
+# runner's --smoke, 2 updates and a resumed third). Held-out exact match 25.4% -> 30.2% (+4.8 points, 95%
 # interval [+1.4, +8.2]), mostly from answering more often (45% -> 60%): the base model reaches the
 # 12-turn limit in 254 of 500 episodes, 138 of them with the answer already in a search result.
+# So the recipe allows 16 turns. In that evaluation the episodes cut off were still searching (4% of
+# their calls repeat an earlier one), 3-6% of the base model's unfinished episodes answered at each of
+# turns 6 to 12, and the cut-off episodes used at most 25,640 tokens of the 43,008-token context,
+# about 1,000 a turn, so four more turns fit it.
 # Settings carried over from the earlier prototype (verl-on-air, Qwen3.5-35B-A3B on verl 0.9, the same
-# held-out questions and index, 2026-09): 12 turns (8 cut off episodes still searching; the base
-# model gained 2 points from 8 to 12), a pure exact-match reward (a bonus for retrieving the answer
-# diluted it), 32 trajectories an update in groups of 16, lr 2e-6. Two training seeds raised held-out
+# held-out questions and index, 2026-09): a pure exact-match reward (a bonus for retrieving the answer
+# diluted it), 32 trajectories an update in groups of 16, lr 2e-6. It ran 12 turns (8 cut off episodes
+# still searching; its base model gained 2 points from 8 to 12), and two training seeds raised held-out
 # exact match from 34.8% to 37.6% and 40.4%.
 extends: agentic/verl
 description: Agentic search (MuSiQue) on verl, Qwen3.6-35B-A3B, Databricks Vector Search.
@@ -28,7 +32,8 @@ model:
 data:
   max_prompt_tokens: 2048             # with the task's 40,960-token response budget: a 43,008 context
 
-agent: {}                             # the task's budgets (12 turns, 4,096 tokens per turn)
+agent:                                # the task's budgets (4,096 tokens per turn), with 16 turns, not 12
+  max_turns: 16
 
 eval:
   samples: 1                          # 532 episodes: one per question, paired by question (McNemar)

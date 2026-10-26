@@ -195,9 +195,12 @@ def resolve_run(ref: str, *, site: dict[str, Any], run_id: str, overrides: list[
     task = load_task(recipe["task"], **(recipe.get("agent") or {}))
     task.with_schema_view((recipe.get("eval") or {}).get("schema_view", "full"))   # an unknown view fails here
     paths = plan(recipe, site, run_id, task_version=task.version)
+    # the rows are shared by every run with the same data settings; the parquet also holds the system
+    # prompt, which can name the recipe's budgets, so each prompt converts into its own directory
+    parquet = f"{paths['data_dir']}/verl/{task.settings()['prompt_sha256'][:12]}"
     paths.update({
-        "train_parquet": f"{paths['data_dir']}/verl/train.parquet",
-        "eval_parquet": f"{paths['data_dir']}/verl/eval.parquet",
+        "train_parquet": f"{parquet}/train.parquet",
+        "eval_parquet": f"{parquet}/eval.parquet",
         "local_checkpoints": f"{paths['local_dir']}/checkpoints",
         # the launcher replaces @RENDERED@ with the directory it resolved the run in
         "agent_loops": "@RENDERED@/agent_loops.yaml",
