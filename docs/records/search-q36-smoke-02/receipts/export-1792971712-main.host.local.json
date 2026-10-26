@@ -1,0 +1,16 @@
+{
+ "at": 1792971712.7233927,
+ "code": {
+  "commit": "2ead10d",
+  "files": 175,
+  "sha256": "56346ca52cbb60c10c80c8ecb1becf0f201bf5b9b493f8242a439b4dda6643a4"
+ },
+ "host": "main.host.local",
+ "image": "<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d",
+ "overrides": [
+  "train.total_training_steps=3",
+  "train.save_freq=1"
+ ],
+ "recipe_sha256": "2757bbef7a9e1cca960552f7acaaf13210b6579b473c37aa37e66cbc177a27cb",
+ "stage": "export"
+}

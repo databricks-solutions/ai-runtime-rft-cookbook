@@ -48,8 +48,11 @@ def test_a_stale_lock_is_taken_over_and_a_renewed_one_is_not(tmp_path, monkeypat
 
 def test_a_job_that_loses_a_simultaneous_creation_waits_for_the_winner(tmp_path, monkeypatch):
     lock = os.path.join(str(tmp_path), stage_model.LOCK)
+    test, sleep = threading.current_thread(), time.sleep
 
     def the_other_job_writes_last(seconds):
+        if threading.current_thread() is not test:   # time.sleep is patched process-wide: other tests' threads sleep too
+            return sleep(seconds)
         with open(lock, "w") as fh:
             fh.write("host=other pid=1 id=theirs")
 
