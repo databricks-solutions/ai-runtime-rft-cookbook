@@ -1,0 +1,284 @@
+{
+ "checks": [
+  {
+   "detail": "10/10 fixtures",
+   "name": "calibration",
+   "passed": true
+  },
+  {
+   "detail": "iter_0000002",
+   "name": "export",
+   "passed": true
+  },
+  {
+   "detail": "oqa-q36-miles-smoke-01/iter_0000002",
+   "name": "evaluated_checkpoint",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "evaluations_complete",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "comparable",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "leakage_clean",
+   "passed": true
+  },
+  {
+   "detail": "11 receipts",
+   "name": "same_code",
+   "passed": true
+  }
+ ],
+ "code": {
+  "commit": "e151733",
+  "files": 182,
+  "sha256": "6f8a19c9dfb6f3f5745b0078e525e1999c3e5587bb99476565ca03cc048e94c6"
+ },
+ "data": {
+  "chunks": {
+   "bytes": 426920180,
+   "count": 131113,
+   "file": "corpus/chunks.jsonl",
+   "sha256": "8c623d441e04f9f7e0a2362471e677ba0475f425ae66402d6877cdb19239f4aa"
+  },
+  "corpus": {
+   "content_sha256": "13a587c3275078fe44f3a713254a9d3a0c0cdcbc7cf75d52a7c89c3d4f7d4696",
+   "documents": 697,
+   "file": "corpus/treasury_bulletins_clean.zip",
+   "text_bytes": 351340241
+  },
+  "outputs": [
+   {
+    "file": "train.jsonl",
+    "ids_sha256": "7a02b45a9f31c41a088ef00425c65158b56f11416c1c021e3b33a3f06c183024",
+    "rows": 203,
+    "sha256": "270920d929a29c281201252898517d7cff6a416db4e898db999010fb4d4d7de6"
+   },
+   {
+    "file": "eval.jsonl",
+    "ids_sha256": "cc8237308b8fc060dd80ec9306b14b493b1c759b509278122ca404558319c399",
+    "rows": 59,
+    "sha256": "573f57865237bd55fc6d7c38f21ebbb15e436c82940f55890da7221137703882"
+   }
+  ],
+  "question_csv": {
+   "bytes": 155772,
+   "sha256": "b5eb1ce0cb343842bccb2f5b067793b4ed90e03e8bf64cb0d40d759bb768ff77"
+  },
+  "source": {
+   "repository": "databricks/officeqa",
+   "revision": "763a8366abf2a3605c381d53586d844dc60fa756"
+  },
+  "split": {
+   "heldout": 43,
+   "heldout_ids": [
+    "UID0055",
+    "UID0179",
+    "UID0004",
+    "UID0111",
+    "UID0214",
+    "UID0190",
+    "UID0012",
+    "UID0025",
+    "UID0193",
+    "UID0220",
+    "UID0228",
+    "UID0003",
+    "UID0133",
+    "UID0010",
+    "UID0044",
+    "UID0221",
+    "UID0068",
+    "UID0188",
+    "UID0102",
+    "UID0065",
+    "UID0180",
+    "UID0007",
+    "UID0027",
+    "UID0100",
+    "UID0195",
+    "UID0083",
+    "UID0058",
+    "UID0096",
+    "UID0030",
+    "UID0147",
+    "UID0056",
+    "UID0042",
+    "UID0224",
+    "UID0086",
+    "UID0219",
+    "UID0213",
+    "UID0049",
+    "UID0245",
+    "UID0140",
+    "UID0168",
+    "UID0174",
+    "UID0022",
+    "UID0124"
+   ],
+   "probe": 16,
+   "probe_ids": [
+    "UID0075",
+    "UID0063",
+    "UID0186",
+    "UID0162",
+    "UID0034",
+    "UID0076",
+    "UID0236",
+    "UID0199",
+    "UID0246",
+    "UID0227",
+    "UID0211",
+    "UID0223",
+    "UID0169",
+    "UID0135",
+    "UID0182",
+    "UID0170"
+   ],
+   "probe_rule": "the first 8 easy and 8 hard training questions by sha256(uid)",
+   "rule": "all easy + the first 90 hard questions by sha256(uid); the rest held out",
+   "train": 203
+  },
+  "task": "officeqa",
+  "tool": "rft_cookbook.tasks.officeqa.data"
+ },
+ "evaluation": {
+  "baseline": "<volume-root>/runs/oqa-q36-verl-03/eval/baseline",
+  "rows_sha256": "573f57865237bd55fc6d7c38f21ebbb15e436c82940f55890da7221137703882",
+  "samples": 4,
+  "sampling": {
+   "seed": 42,
+   "seeds": "seed + index * samples + k",
+   "temperature": 1.0,
+   "top_k": -1,
+   "top_p": 1.0
+  },
+  "schema_view": "full",
+  "serving": {
+   "args": [
+    "--language-model-only"
+   ],
+   "chat_template_kwargs": {},
+   "engine": "vllm",
+   "reasoning_parser": null,
+   "tensor_parallel": 8,
+   "tool_parser": "qwen3_coder"
+  },
+  "settings": {
+   "budgets": {
+    "generation_reserve": 64,
+    "max_context_tokens": 98304,
+    "max_response_tokens": 96256,
+    "max_tool_calls": null,
+    "max_tool_calls_per_turn": 1,
+    "max_turn_tokens": 4096,
+    "max_turns": 128,
+    "tool_output_bytes": 8000,
+    "tool_timeout_s": 60.0
+   },
+   "prompt_sha256": "99b1777dd047f6b8673072820846c1dad9f630406117a0c4e71940b5a6fade48",
+   "scorer": "officeqa/path-report-v2+glm-5.3-flash-hosted-support-v1",
+   "terminal": {
+    "kind": "tool",
+    "tool": "submit_report"
+   },
+   "tools_sha256": "739077d5d65e159b2b6771058d161d9010c067bb00a79ca8b3965304fe2482a0"
+  },
+  "task": "officeqa",
+  "task_version": "1",
+  "trained": "oqa-q36-miles-smoke-01/iter_0000002"
+ },
+ "image": "<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2",
+ "judge": {
+  "id": "glm-5.3-flash-hosted-support-v1",
+  "models": [
+   "system.ai.glm-5-3-flash"
+  ],
+  "tokenizer": {
+   "id": "zai-org/GLM-5.3-Flash",
+   "revision": "eb9eb208eb0d988989d07a6a12d0fdeb5f52574a"
+  }
+ },
+ "model": {
+  "id": "Qwen/Qwen3.6-35B-A3B",
+  "revision": "995ad96eacd98c81ed38be0c5b274b04031597b0",
+  "staged_revision": "995ad96eacd98c81ed38be0c5b274b04031597b0"
+ },
+ "recipe": {
+  "checked_in_sha256": "ef15cb70c25b34e8747090316e37f1a55fb4a8eabf9be59dcd4089f2ec642dc5",
+  "deviations": [
+   "train.num_rollout",
+   "train.save_interval"
+  ],
+  "name": "officeqa/miles/qwen3.6-35b-a3b_h100x16",
+  "overrides": [
+   "eval.baseline_run=oqa-q36-verl-03",
+   "stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]",
+   "train.num_rollout=3",
+   "train.save_interval=1"
+  ],
+  "resolved_sha256": "d341edc62fa91a0dcf94c0891868838e7a822d8adb2693c1e0f6fa011673c40f"
+ },
+ "result": {
+  "bootstrap_95": [
+   -0.025423728813559324,
+   0.08050847457627118
+  ],
+  "mean_difference": 0.025423728813559324,
+  "splits": {
+   "heldout": {
+    "baseline": 0.20348837209302326,
+    "bootstrap_95": [
+     -0.01744186046511628,
+     0.09302325581395349
+    ],
+    "mean_difference": 0.03488372093023256,
+    "paired_questions": 43,
+    "trained": 0.23837209302325582
+   },
+   "probe": {
+    "baseline": 0.46875,
+    "bootstrap_95": [
+     -0.125,
+     0.125
+    ],
+    "mean_difference": 0.0,
+    "paired_questions": 16,
+    "trained": 0.46875
+   }
+  }
+ },
+ "run_id": "oqa-q36-miles-smoke-01",
+ "schema": "rft-cookbook/qualification/v1",
+ "stages": [
+  "{\"image\": \"<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\", \"train.num_rollout=2\", \"train.save_interval=1\"], \"stage\": \"train\"}",
+  "{\"image\": \"<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\", \"train.num_rollout=3\", \"train.save_interval=1\"], \"stage\": \"compare\"}",
+  "{\"image\": \"<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\", \"train.num_rollout=3\", \"train.save_interval=1\"], \"stage\": \"export\"}",
+  "{\"image\": \"<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\", \"train.num_rollout=3\", \"train.save_interval=1\"], \"stage\": \"train\"}",
+  "{\"image\": \"<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\"], \"stage\": \"calibrate\"}",
+  "{\"image\": \"<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\"], \"stage\": \"prep\"}",
+  "{\"image\": \"<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\"], \"stage\": \"stage_judge\"}",
+  "{\"image\": \"<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\"], \"stage\": \"stage_model\"}",
+  "{\"image\": \"<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"eval.baseline_run=oqa-q36-verl-03\", \"stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]\", \"train.num_rollout=3\", \"train.save_interval=1\"], \"stage\": \"eval\"}"
+ ],
+ "status": "smoke-tested",
+ "topology": {
+  "accelerator": "GPU_8xH100",
+  "nodes": 2,
+  "timeout_minutes": 240,
+  "train_timeout_minutes": 1080
+ },
+ "training": {
+  "published": "iter_0000002",
+  "step": 3,
+  "weights_hash": "content",
+  "weights_sha256": "ec8644dee30fea95fd19fda273de603bcbb72cb640bab97510e79dfd4a752933"
+ }
+}

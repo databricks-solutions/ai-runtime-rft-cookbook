@@ -1,0 +1,16 @@
+{
+ "at": 1793024945.6391897,
+ "code": {
+  "commit": "e151733",
+  "files": 182,
+  "sha256": "6f8a19c9dfb6f3f5745b0078e525e1999c3e5587bb99476565ca03cc048e94c6"
+ },
+ "host": "main.host.local",
+ "image": "<catalog>.<schema>.miles-air@sha256:57b37888e9a2188088f2d6a1caad6d2906217a685201021a7ed245b8fe630ce2",
+ "overrides": [
+  "eval.baseline_run=oqa-q36-verl-03",
+  "stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]"
+ ],
+ "recipe_sha256": "5f8185d0b2f31346f29fde7d9c714d99170c3ab070024c697a6b44f2978f9389",
+ "stage": "stage_judge"
+}
