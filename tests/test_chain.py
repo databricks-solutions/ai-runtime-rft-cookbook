@@ -16,6 +16,7 @@ SITE = {"RFT_PROFILE": "ws", "RFT_VOLUME_ROOT": "/Volumes/cat/sch/vol/rft", "RFT
 VERL = "officeqa/verl/qwen3.6-35b-a3b_h100x16"
 MILES = "officeqa/miles/qwen3.6-35b-a3b_h100x16"
 SEARCH = "search/verl/qwen3.6-35b-a3b_h100x16"
+STAGES = "stages=[prep,stage_model,stage_judge,calibrate,train,export,eval,compare]"   # MILES' without baseline_eval
 
 
 def answer(data: dict) -> str:
@@ -79,6 +80,9 @@ def test_a_run_compared_with_another_baseline_skips_its_own_and_miles_trains_on_
     make(MILES, air, tmp_path, ["eval.baseline_run=oqa-verl-01"]).go()
     by_stage = {s["stage"]: s for s in air.submitted}
     assert "baseline_eval" not in by_stage
+    # every job reads the run without it too: a recipe that borrows a baseline cannot list its own
+    assert all(shlex.split(s["env_variables.RFT_SET"]) == ["eval.baseline_run=oqa-verl-01", STAGES]
+               for s in air.submitted)
     assert by_stage["train"]["environment.unity_catalog_image"] == "cat.sch.miles:v1"
     assert by_stage["eval"]["environment.unity_catalog_image"] == "cat.sch.verl:v1"   # vLLM serves every export
 
@@ -131,8 +135,8 @@ def test_the_smoke_trains_two_updates_resumes_a_third_and_evaluates_that(tmp_pat
     air = FakeAir()
     make(MILES, air, tmp_path, ["eval.baseline_run=oqa-verl-01"]).go(smoke=True)
     trains = [shlex.split(s["env_variables.RFT_SET"]) for s in air.submitted if s["stage"] == "train"]
-    assert trains == [["eval.baseline_run=oqa-verl-01", "train.num_rollout=2", "train.save_interval=1"],
-                      ["eval.baseline_run=oqa-verl-01", "train.num_rollout=3", "train.save_interval=1"]]
+    assert trains == [["eval.baseline_run=oqa-verl-01", STAGES, "train.num_rollout=2", "train.save_interval=1"],
+                      ["eval.baseline_run=oqa-verl-01", STAGES, "train.num_rollout=3", "train.save_interval=1"]]
     later = {s["stage"]: shlex.split(s["env_variables.RFT_SET"]) for s in air.submitted}
     assert "train.num_rollout=3" in later["export"] and "train.num_rollout=3" in later["compare"]
 

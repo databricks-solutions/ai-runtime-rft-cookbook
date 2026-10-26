@@ -7,10 +7,11 @@ Each stage is the recipe's checked-in job (`recipes/<recipe>/jobs/<stage>.yaml`)
 its placeholders filled from site.env (profile, volume root, images, Hugging Face secret), the run's
 overrides (`RFT_SET`, the same for every stage), and the commit and image for the qualification
 record (`RFT_CODE_COMMIT`, `RFT_IMAGE`). The baseline evaluation runs beside training; a run
-compared with another run's baseline (`eval.baseline_run`) skips it. The chain waits for each job;
-one that failed stops it. Every job it submitted is kept in a state file (`~/.rft-runs/<run id>.json`,
-not /tmp: a workstation restart must not lose it): run again, the chain reuses a job that succeeded
-and waits for one that still runs, so a chain can be resumed.
+compared with another run's baseline (`eval.baseline_run`) skips it, and its stages are overridden
+to leave it out. The chain waits for each job; one that failed stops it. Every job it submitted is
+kept in a state file (`~/.rft-runs/<run id>.json`, not /tmp: a workstation restart must not lose
+it): run again, the chain reuses a job that succeeded and waits for one that still runs, so a chain
+can be resumed.
 
 `--smoke` is tier 5 of docs/architecture.md "Testing": train two updates with a save each, resume
 for a third, export, evaluate the export and compare; its qualification record says smoke-tested.
@@ -73,6 +74,12 @@ class Chain:
 
         self.recipe_ref, self.run_id, self.site, self.overrides = recipe, run_id, site, list(overrides)
         self.recipe = load_recipe(recipe, overrides=self.overrides, root=root / "recipes")
+        if (self.recipe.get("eval") or {}).get("baseline_run") not in (None, run_id) \
+                and "baseline_eval" in self.recipe["stages"]:
+            # evaluated in the run it compares with: every job reads the run without it
+            kept = [s for s in self.recipe["stages"] if s != "baseline_eval"]
+            self.overrides.append(f"stages=[{','.join(kept)}]")
+            self.recipe = load_recipe(recipe, overrides=self.overrides, root=root / "recipes")
         self.jobs, self.state_path, self.poll_s, self.log = root / "recipes" / recipe / "jobs", state, poll_s, log
         self.run = run or _run
         # "-dirty" when the checkout has uncommitted changes: the record's code hash names them exactly
@@ -80,12 +87,6 @@ class Chain:
         self.commit = self.run(describe).strip() or None
         self.state = json.loads(state.read_text()) if state.exists() else {}
         self._lock = threading.Lock()
-
-    def stages(self) -> list[str]:
-        stages = list(self.recipe["stages"])
-        if (self.recipe.get("eval") or {}).get("baseline_run") not in (None, self.run_id):
-            stages = [s for s in stages if s != "baseline_eval"]   # evaluated in the run it compares with
-        return stages
 
     def stage(self, stage: str, extra: list[str] = (), key: str | None = None) -> None:
         """Submit (or reuse) the stage's job and wait for it; raises if it did not succeed."""
@@ -142,7 +143,7 @@ class Chain:
         return (_answer(out) or {}).get("status") or "UNKNOWN"
 
     def go(self, *, smoke: bool = False) -> None:
-        stages, baseline, failures = self.stages(), None, []
+        stages, baseline, failures = list(self.recipe["stages"]), None, []
 
         def beside(stage):
             try:
