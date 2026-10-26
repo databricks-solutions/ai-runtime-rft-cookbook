@@ -1,19 +1,18 @@
-# OfficeQA on verl: Qwen3.5-35B-A3B answers Treasury Bulletin questions with retrieval and compute
-# tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
+# OfficeQA on verl: Qwen3.5-35B-A3B answers questions about U.S. Treasury Bulletins with search,
+# read and compute tools, and cites the evidence for its answer. A hosted GLM-5.3-Flash judge checks
+# the evidence. Two nodes of 8 H100s: one trains, one serves.
 #
-# Status: superseded by recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, the same recipe with the newer
-# model and the reference OfficeQA recipe now; kept with its results, not rerun on the final code (no
-# qualification record). The base model's evaluation is compared with the
-# measured verl-on-air baseline (reference_baseline.json), paired by question, before training. The
-# reference model saw verl 0.10's reduced tool schemas, so parity runs as its own run with that view
-# (RFT_SET="eval.schema_view=verl-0.10-properties": baseline_eval, then parity; it agreed on
-# 2026-10-22); the training run keeps the full schemas and skips parity (its baseline, 15.1% held-out,
-# is above the reference's 8.7%).
-# Training follows the measured run: 100 updates of 4 prompts x 4 samples on 8 trainer + 8 rollout
-# H100s (two nodes). GPU runs 2026-10-22, two training seeds: held-out supported pass@1 15.1% ->
-# 22.1% (seed 42, +7.0 points, 95% interval [+1.2, +13.4]) and -> 20.9% (seed 7, +5.8 [0.0, +12.2]);
-# see docs/architecture.md, milestone 2. These runs predate the first commit; the Qwen3.6 recipe, the
-# same recipe with the newer model, has since run on the committed code.
+# Status: superseded by recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, the same recipe with the
+# newer model. Kept with its results; it wasn't rerun on the final code, so it has no run record.
+# Two runs of 100 updates (2026-10-22, two training seeds): held-out supported pass@1 15.1% -> 22.1%
+# (+7.0 points, 95% CI +1.2 to +13.4) and 15.1% -> 20.9% (+5.8, 95% CI 0.0 to +12.2).
+#
+# The parity stage compares the base model with an earlier measured baseline
+# (reference_baseline.json), question by question, before training. That baseline saw verl's
+# simplified tool schemas (frameworks/verl/README.md), so parity runs on its own with that view:
+# RFT_SET="eval.schema_view=verl-0.10-properties", stages baseline_eval and parity. It agreed. The
+# training run shows the full schemas and skips parity; its base model scores 15.1% held-out,
+# against the reference's 8.7%.
 extends: agentic/verl
 description: OfficeQA on verl, Qwen3.5-35B-A3B, hosted judge.
 task: officeqa

@@ -1,11 +1,12 @@
-# Technical smoke on upstream miles: GLM-5.3-Flash's 4-layer slice with a calculator on one 8xB300
-# node, colocated in upstream's slice layout (TP2/PP2/EP2 training, two SGLang engines of 4 GPUs).
-# The slice keeps 4 of the model's 45 layers, so its answers carry no learning signal: this recipe
-# qualifies plumbing (episodes through the session server, cookbook scoring, two updates with
-# weight sync, published checkpoints), not a result.
-# Status: done (no qualification record yet). GPU smoke 2026-10-23 on miles v0.1.3 and its image
-# (frameworks/miles/image): 2 rollouts of 16 episodes through the session server, both updates, weight
-# sync, iter_0000001 published (336.6 GB).
+# Smoke test on miles: a 4-layer slice of GLM-5.3-Flash solves math problems with a calculator, on
+# one node of 8 B300s. Training and serving share the GPUs, in upstream's layout for the slice (TP2,
+# PP2, EP2 training; two SGLang engines of 4 GPUs).
+# The slice keeps 4 of the model's 45 layers, so it can't learn anything useful. The recipe checks
+# the plumbing (episodes through the session server, scoring, two updates with weight sync, a
+# published checkpoint), not a result.
+#
+# Status: ran (2026-10-23, before run records existed): two rollouts of 16 episodes, two updates,
+# and a published 337 GB checkpoint.
 extends: agentic/miles
 description: Math on upstream miles, GLM-5.3-Flash 4-layer slice, 1 node (technical smoke).
 task: math

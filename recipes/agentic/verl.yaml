@@ -1,9 +1,9 @@
-# The generic agentic recipe on verl. Every agentic recipe for verl extends this one and sets
-# at least `task`, `model` and `compute`; see recipes/math/verl/qwen3.5-2b_h100x8.
+# The generic agentic recipe on verl. Every verl recipe extends it and sets at least `task`, `model`
+# and `compute`; recipes/math/verl/qwen3.5-2b_h100x8 is the smallest example.
 #
-# verl's V1 trainer in separate_async mode: training on `compute.trainer_gpus`, a standalone
-# vLLM rollout pool on `compute.rollout_gpus` (hybrid_engine=False), weights pushed over NCCL.
-# The cookbook agent loop runs the task with the shared episode policy and scores each episode.
+# verl's V1 trainer in separate_async mode: training on `compute.trainer_gpus`, and a separate vLLM
+# rollout pool on `compute.rollout_gpus` (hybrid_engine=False), with weights pushed over NCCL. The
+# cookbook's agent loop runs each episode with the shared episode rules and scores it.
 description: Generic agentic GRPO recipe for verl (V1 trainer, separate_async).
 framework: verl
 stages: [prep, stage_model, baseline_eval, train, export, eval, compare]

@@ -8,7 +8,9 @@ not legal advice and does not establish what any model or dataset may be used fo
 
 ## Files derived from other projects
 
-| file | origin | licence |
+verl-on-air is the earlier open-source prototype (Apache-2.0) that this cookbook grew out of.
+
+| file | origin | license |
 |---|---|---|
 | `src/rft_cookbook/tasks/math/_vendor/prm800k_grader.py` | `grade_answer` from verl (commit 8718ca30) `verl/utils/reward_score/prime_math/__init__.py` (PRIME team), itself from OpenAI's PRM800K grader | Apache-2.0 (verl, PRIME); PRM800K: MIT |
 | `src/rft_cookbook/tasks/math/_vendor/math_normalize.py` | verl (commit 8718ca30) `prime_math/math_normalize.py`, from the MATH release's answer normalization (Hendrycks et al., 2021) | Apache-2.0; MIT (MATH) |
@@ -27,7 +29,7 @@ The last-`\boxed{}` extraction in `tasks/math/grading.py` follows the MATH bench
 
 ## Used, not copied
 
-| what | used for | licence |
+| what | used for | license |
 |---|---|---|
 | verl (commit 8718ca30) | the RL framework of the verl adapter (from its image only) | Apache-2.0 |
 | vLLM, Megatron-Core, Megatron-Bridge, Transformer Engine, apex, flash-attn, PyTorch, Ray, Transformers | the training and inference stack in the verl image (`frameworks/verl/image/*.lock`) | each project's own (Apache-2.0, BSD-3-Clause, MIT) |
@@ -37,7 +39,7 @@ The last-`\boxed{}` extraction in `tasks/math/grading.py` follows the MATH bench
 
 ## Models and datasets (downloaded at a pinned revision; not redistributed)
 
-| what | used for | where to read its licence |
+| what | used for | where to read its license |
 |---|---|---|
 | Qwen3.5 (2B and larger), Qwen3.6-35B-A3B | policies | the model cards on Hugging Face |
 | GLM-5.3-Flash (and its 4-layer slice) | policy; hosted judge | the model cards on Hugging Face |

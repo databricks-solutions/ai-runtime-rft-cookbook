@@ -1,13 +1,12 @@
-# Training trial on upstream miles: the full GLM-5.3-Flash (45 layers, 288 experts, about 300B
-# parameters) with a calculator on four 8xB300 nodes, colocated in upstream's 32-GPU layout (TP8/PP4/EP8
-# training, four SGLang engines of 8 GPUs). A few rollouts at full size: episodes through the session
-# server, training, weight sync, and one resumable checkpoint (model, optimizer, RNG) of the whole model.
-# Status: done (no qualification record yet). GPU run 2026-10-23: 3 rollouts of 4 prompts x 8 samples,
-# 3 updates (13 to 19 min per rollout and update, mostly the offloaded update), the FP8 weight check
-# passed with --check-weight-update-allow-quant-error, and the step-3 checkpoint (4.8 TB, resumable)
-# was published. The job still ended FAILED: one node exited non-zero after the head finished cleanly,
-# while Ray actors were still exiting. Nodes now wait for them (rft_cookbook.air.cluster); the
-# two-node miles runs of recipes/officeqa/miles/qwen3.6-35b-a3b_h100x16 have since ended SUCCESS with it.
+# Training trial on miles: the full GLM-5.3-Flash (45 layers, 288 experts, about 300B parameters)
+# solves math problems with a calculator, on four nodes of 8 B300s. Training and serving share the
+# GPUs, in upstream's 32-GPU layout (TP8, PP4, EP8 training; four SGLang engines of 8 GPUs). It runs
+# a few updates at full size and saves one resumable checkpoint of the whole model (weights,
+# optimizer and RNG state).
+#
+# Status: ran (2026-10-23, before run records existed): three updates of 4 prompts x 8 samples, 13
+# to 19 minutes each (mostly the offloaded optimizer step), and a published 4.8 TB checkpoint. The
+# FP8 weight-update check passed with --check-weight-update-allow-quant-error.
 extends: agentic/miles
 description: Math on upstream miles, GLM-5.3-Flash, 4 nodes (training trial).
 task: math

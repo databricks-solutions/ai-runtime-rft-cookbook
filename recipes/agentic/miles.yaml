@@ -1,7 +1,7 @@
 # The generic agentic recipe on upstream miles (frameworks/miles). Each episode is the cookbook's
-# Chat Completions harness against miles' session server (agentic_tool_call, session server v2);
-# the cookbook scores it and miles reads the score through --custom-rm-path. Training runs
-# upstream's launcher for the model (model.launcher) with the cookbook's hooks added.
+# Chat Completions harness against miles' session server (agentic_tool_call, session server v2). The
+# cookbook scores the episode, and miles reads the score through --custom-rm-path. Training runs
+# upstream's launcher for the model (model.launcher), with the cookbook's hooks added.
 framework: miles
 stages: [prep, stage_model, train]
 

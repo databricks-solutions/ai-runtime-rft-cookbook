@@ -1,12 +1,10 @@
-# Math quickstart: Qwen3.5-2B with a calculator on one 8xH100 node (4 trainer + 4 rollout GPUs).
-# MATH train levels 1-3, evaluated on MATH-500 before and after training.
-# Status: measured (qualification record of run math-2b-02, 2026-10-25: the recipe as checked in,
-# every stage on code 7c2a9f1, every check passed). This recipe qualifies plumbing (two updates,
-# publish, resume, one more update, export, evaluate the export), not a learning result:
-#   2026-10-25, measured: MATH-500 61.8% -> 62.0% (+0.2 points, 95% interval [-2.8, +3.2]), 500 of
-#     500 episodes on each side, in 50 minutes.
-#   2026-10-23, committed code: 62.8% -> 61.4% (-1.4 [-4.6, +1.8]).
-#   2026-10-21, GPU acceptance run: 61.8% -> 61.0%.
+# Math quickstart: Qwen3.5-2B solves MATH problems (levels 1-3) with a calculator, on one node of 8
+# H100s (4 train, 4 serve), and is evaluated on MATH-500 before and after training.
+# The recipe checks the plumbing, not learning: two updates with a checkpoint each, export, and an
+# evaluation of the export. A run takes about 50 minutes.
+#
+# Status: measured (run math-2b-02, docs/records/math-2b-02): MATH-500 61.8% -> 62.0% (+0.2 points,
+# 95% CI -2.8 to +3.2), as expected after two updates.
 extends: agentic/verl
 description: Math quickstart on verl, Qwen3.5-2B, 1 node.
 task: math

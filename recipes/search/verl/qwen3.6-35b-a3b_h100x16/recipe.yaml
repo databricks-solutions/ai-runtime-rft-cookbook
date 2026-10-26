@@ -1,25 +1,21 @@
 # Agentic search on verl: Qwen3.6-35B-A3B answers MuSiQue multi-hop questions by searching a
-# Databricks Vector Search index of encyclopedia passages, on 2 nodes of 8 H100s (8 train, 8 serve).
-# Exact-match reward, no judge. Held out: 500 MuSiQue validation questions, stratified by hop count
-# (rft_cookbook.tasks.search.data). The index is the workspace's: its jobs leave RFT_VS_INDEX for
-# site.env, and the corpus it was built from is described in rft_cookbook.tasks.search.
-# Status: measured (qualification record of run search-q36-01, 2026-10-26: 50 updates in about 2.5
-# hours, one training seed). Held-out exact match 28.2% -> 37.4% (+9.2 points, 95% interval [+5.2,
-# +13.4], 500 questions); the 32 training probes 31.2% -> 46.9%. The trained model answers far more
-# often (87% of the held-out episodes against 48%; 24 reach the 16-turn limit against 223) after fewer
-# searches (5.7 tool calls against 10.0), and less precisely: 43.0% of its answers are right against
-# 58.5%, and it gets 34 of the 141 questions the base model answered right wrong (24%; between the base
-# model's evaluations at 12 and 16 turns, 7% of right answers turn wrong).
-# The runner's --smoke passed with 12 turns (run search-q36-smoke-02: 2 updates and a resumed third;
-# held-out 25.4% -> 30.2%). There the base model reached the 12-turn limit in 254 of 500 held-out
-# episodes, 138 of them with the answer already in a search result, so the recipe allows 16: the episodes
-# cut off were still searching (4% of their calls repeat an earlier one), and they used at most 25,640
-# tokens of the 43,008-token context, about 1,000 a turn. With 16 turns the base model scores 28.2%.
-# Settings carried over from the earlier prototype (verl-on-air, Qwen3.5-35B-A3B on verl 0.9, the same
-# held-out questions and index, 2026-09): a pure exact-match reward (a bonus for retrieving the answer
-# diluted it), 32 trajectories an update in groups of 16, lr 2e-6. It ran 12 turns (8 cut off episodes
-# still searching; its base model gained 2 points from 8 to 12), and two training seeds raised held-out
-# exact match from 34.8% to 37.6% and 40.4%.
+# Databricks Vector Search index of encyclopedia passages. Exact-match reward, no judge. Two nodes of
+# 8 H100s: one trains, one serves.
+# Held out: 500 MuSiQue validation questions, stratified by hop count. The index is your workspace's
+# (RFT_VS_INDEX in site.env); rft_cookbook.tasks.search describes what it must contain.
+#
+# Status: measured (run search-q36-01, docs/records/search-q36-01): 50 updates in about 2.5 hours;
+# held-out exact match 28.2% -> 37.4% (+9.2 points, 95% CI +5.2 to +13.4).
+# Most of the gain comes from answering more often. The trained model answers 87% of the held-out
+# questions (the base model 48%: 223 of its 500 episodes reach the turn limit), after fewer searches
+# (5.7 tool calls against 10.0). Its answers are less precise: 43% are right, against 58.5%.
+#
+# Why 16 turns: with 12, the base model reached the limit in half its episodes, most of them still
+# searching. The longest of those used about 25,600 of the 43,008-token context, about 1,000 tokens a
+# turn, so 16 turns fit.
+# The reward and batch come from an earlier prototype on Qwen3.5-35B-A3B, with the same held-out
+# questions and index: a pure exact-match reward (a bonus for retrieving the answer diluted it), 32
+# trajectories an update in groups of 16, and learning rate 2e-6.
 extends: agentic/verl
 description: Agentic search (MuSiQue) on verl, Qwen3.6-35B-A3B, Databricks Vector Search.
 task: search
