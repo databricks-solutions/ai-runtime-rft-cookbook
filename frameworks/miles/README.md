@@ -74,6 +74,12 @@ Upstream launchers are used for the GLM configurations.
 - **Startup needs the pinned source archive.** An unavailable archive or a hash mismatch stops
   the job before training.
 
+## Diagnosing shutdown
+
+The [SGLang shutdown probe](diagnostics/README.md) tests one server on one H100 without training
+or Ray. Use it to distinguish engine signal handling from full training-job teardown. It does
+not change checkpoints or suppress crash detection in training.
+
 ## Testing
 
 For adapter tests without installing miles:

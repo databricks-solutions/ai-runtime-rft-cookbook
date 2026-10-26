@@ -108,6 +108,26 @@ Confirm the published step and read the logs before retrying. A retry that finds
 to train does not demonstrate that a training process shut down correctly. See the
 [miles limitations](../frameworks/miles/README.md#known-limitations).
 
-For a brief integration test rather than a full experiment, add `--smoke` to the runner command.
-It trains two updates, restarts for a third, exports, and evaluates. Smoke-test scores should
-not be presented as evidence that a full training recipe improves quality.
+## What a smoke test establishes
+
+Add `--smoke` for a short training integration test: two updates, a restart from the published
+checkpoint, a third update, export, and evaluation. Its purpose is to check that the workflow
+works, not that three updates improve the model.
+
+For OfficeQA's Qwen3.6 recipes, that includes the two-node training layout, judge calibration,
+checkpoint publication and resume, and serving the exported weights through the common evaluation
+harness. The evaluation keeps the recipe's normal coverage: 43 held-out questions and 16
+training probes, with four samples each—236 episodes in total. The probes are reported
+separately and do not enter the held-out score. Evaluation can therefore take much longer than
+the short training budget suggests.
+
+A smoke can reuse a compatible base-model evaluation through `eval.baseline_run`; it need not
+generate a new baseline. The comparison checks the same questions and settings against the
+three-update checkpoint. For the verl recipe, both rollout serving and evaluation use vLLM;
+this is separate from testing SGLang shutdown on miles.
+
+A valid score is not necessarily a correct answer: an incorrect answer can have a valid score
+of zero. Every planned episode must have a usable score for the evaluation to qualify. An
+undecided or contradictory judge verdict remains invalid rather than being silently counted
+as wrong or omitted. Successful training and job completion do not, by themselves, make the
+whole smoke test pass. The qualification record must pass too.
