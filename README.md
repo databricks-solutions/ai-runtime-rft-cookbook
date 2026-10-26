@@ -116,7 +116,8 @@ hooks and the checked-in jobs; against the pinned miles (`test_miles_api.py`) th
 with miles' own loader, check it against the call miles makes, run miles' session post-processing
 and check every flag a recipe passes against miles' parser. The core tests include the judge client
 against a fake OpenAI-compatible server. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs
-them all on CPU, the miles tests twice: without miles and against the pinned miles.
+them all on CPU, the miles tests twice: without miles and against the pinned miles. The latest run
+of every testing tier, CPU and GPU, is recorded in [docs/records](docs/records/README.md).
 
 ## How to get help
 
