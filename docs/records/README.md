@@ -37,10 +37,10 @@ environment, on a clean checkout of the commit, with the installs the job lists.
 
 | Tier | What ran | Commit | Result |
 |---|---|---|---|
-| 1, 2, 4 | CI job `core`: unit and contract tests, every recipe and job, the public-safety scan | 3c92065 | 600 passed; 3 expected failures (known limits of the vendored math grader) |
-| 2, 3, 4 | CI job `verl`: the verl adapter against the pinned verl and a real Qwen3.5 tokenizer | 3c92065 | 40 passed |
-| 2, 4 | CI job `miles`: the miles adapter without miles installed | 3c92065 | 27 passed, 2 skipped (they need miles) |
-| 3 | CI job `miles-api`: the miles adapter against the pinned miles | 3c92065 | 47 passed |
+| 1, 2, 4 | CI job `core`: unit and contract tests, every recipe and job, the public-safety scan | c627256 | 601 passed; 3 expected failures (known limits of the vendored math grader) |
+| 2, 3, 4 | CI job `verl`: the verl adapter against the pinned verl and a real Qwen3.5 tokenizer | c627256 | 40 passed |
+| 2, 4 | CI job `miles`: the miles adapter without miles installed | c627256 | 27 passed, 2 skipped (they need miles) |
+| 3 | CI job `miles-api`: the miles adapter against the pinned miles | c627256 | 47 passed |
 | 5 | GPU smoke of the math recipe on verl (`math-2b-smoke-01`) | c45c5e7 | smoke-tested |
 | 5 | GPU smoke of the search recipe on verl, with 12 turns (`search-q36-smoke-02`) | 2ead10d | smoke-tested |
 | 5 | GPU smoke of the OfficeQA recipe on miles: two updates, a resumed third, export | 9e2416c | passed (run by hand, before run records existed) |
