@@ -95,6 +95,14 @@ On the volume, `comparison.json` contains the scores and confidence intervals.
 `qualification.json` identifies the experiment and lists its checks. Inspect both: a successful
 job submission or a checkpoint on disk is not enough to establish a valid comparison.
 
+If evaluation is interrupted, retry with the same settings. The earlier incomplete attempt is
+preserved under the evaluation directory's `attempts/`; its episodes are not mixed into the
+retry. A completed evaluation or a changed evaluation plan requires a new label.
+
+A failed qualification makes the comparison job fail, while preserving both result files for
+inspection. The exported step must match the requested training budget, and the evaluated model
+must identify this run's checkpoint and pinned base model.
+
 For miles, a checkpoint may be complete even when AI Runtime reports a shutdown failure.
 Confirm the published step and read the logs before retrying. A retry that finds nothing left
 to train does not demonstrate that a training process shut down correctly. See the

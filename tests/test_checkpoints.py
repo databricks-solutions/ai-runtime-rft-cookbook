@@ -134,6 +134,17 @@ def test_the_export_hash_covers_the_weights_content_when_the_bundle_was_publishe
     assert exported(tmp_path / "c", True, b"a")["weights_sha256"] == one["weights_sha256"]
 
 
+@pytest.mark.parametrize("hash_files", [True, False])
+def test_export_rechecks_weight_content_instead_of_reusing_a_publication_hash(tmp_path, hash_files):
+    store = CheckpointStore(tmp_path / "volume", hash_files=hash_files)
+    assert store.publish(native_save(tmp_path / "local", 4)).status == "published"
+    published = store.latest()
+    before = store.export(published)
+    shard = next(Path(published.hf_path).glob("*.safetensors"))
+    shard.write_bytes(b"x" * shard.stat().st_size)
+    assert store.export(published)["weights_sha256"] != before["weights_sha256"]
+
+
 def test_the_store_records_its_retention(tmp_path):
     store = CheckpointStore(tmp_path / "volume")
     assert store.retention() is None

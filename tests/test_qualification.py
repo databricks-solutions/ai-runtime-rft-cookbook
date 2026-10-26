@@ -18,16 +18,17 @@ COMPARISON = {"summary": {"comparable": True, "incomplete": [], "mismatched_sett
 
 
 def run(tmp_path: Path, *, recipe=RECIPE, comparison=COMPARISON, calibrated=True, stages=("train", "export", "eval"),
-        other_code=()) -> dict:
+        other_code=(), actual_step=4, served_model=None) -> dict:
     run_dir = tmp_path / "runs" / "r1"
     store = CheckpointStore(run_dir / "checkpoints", hash_files=False)
-    store.publish(native_save(tmp_path / "local", 4))
+    store.publish(native_save(tmp_path / "local", actual_step))
     published = store.latest()
     (run_dir / "export.json").write_text(json.dumps({**store.export(published), "name": published.name}))
     (run_dir / "calibration.json").write_text(json.dumps({"checks": [{"pass": True}, {"pass": calibrated}]}))
-    plan = run_dir / "eval" / "step_4" / "plan.json"
+    plan = run_dir / "eval" / f"step_{actual_step}" / "plan.json"
     plan.parent.mkdir(parents=True)
-    plan.write_text(json.dumps({"task": "toy", "samples": 4, "model": {"checkpoint": "r1/global_step_4"}}))
+    model = {**recipe["model"], "checkpoint": f"r1/global_step_{actual_step}"} if served_model is None else served_model
+    plan.write_text(json.dumps({"task": "toy", "samples": 4, "model": model}))
     paths = {"run_id": "r1", "run_dir": str(run_dir), "checkpoints": str(run_dir / "checkpoints"),
              "eval_dir": str(run_dir / "eval"), "baseline_dir": str(tmp_path / "runs/base/eval/baseline"),
              "model_dir": str(tmp_path / "models/x"), "data_dir": str(tmp_path / "data")}
@@ -48,7 +49,8 @@ def test_a_complete_run_of_the_recipe_as_checked_in_is_measured(tmp_path):
     record = run(tmp_path)
     assert record["status"] == "measured" and all(c["passed"] for c in record["checks"])
     assert {c["name"] for c in record["checks"]} == {"calibration", "export", "evaluated_checkpoint", "same_code",
-                                                    "evaluations_complete", "comparable", "leakage_clean"}
+                                                    "evaluations_complete", "comparable", "leakage_clean",
+                                                    "training_budget"}
     assert len(record["stages"]) == 3   # each stage's image: miles trains on its own, evaluates on verl's
     assert record["recipe"]["overrides"] == ["train.seed=7"] and record["image"] == "img@sha256:abc"
     assert record["training"]["published"] == "global_step_4"
@@ -59,8 +61,34 @@ def test_a_reduced_run_is_smoke_tested_and_a_seed_is_not_a_reduction(tmp_path):
     logged = {**RECIPE, "train": {**RECIPE["train"], "seed": 7, "diagnostics": True}}
     assert qualification.deviations(CHECKED_IN, logged) == []   # a replicate, with drift logging on
     reduced = {**RECIPE, "train": {**RECIPE["train"], "total_training_steps": 2, "seed": 7}}
-    record = run(tmp_path, recipe=reduced)
+    record = run(tmp_path, recipe=reduced, actual_step=2)
     assert record["status"] == "smoke-tested" and record["recipe"]["deviations"] == ["train.total_training_steps"]
+
+
+def test_the_exported_step_must_match_the_requested_training_budget(tmp_path):
+    for framework, key in (("verl", "total_training_steps"), ("miles", "num_rollout")):
+        recipe = {**RECIPE, "framework": framework, "train": {key: 4, "seed": 42}}
+        for step in (3, 5):
+            record = run(tmp_path / framework / str(step), recipe=recipe, actual_step=step)
+            assert record["status"] == "failed"
+            check = next(c for c in record["checks"] if c["name"] == "training_budget")
+            assert not check["passed"] and f"exported {step}" in check["detail"]
+        record = run(tmp_path / framework / "4", recipe=recipe)
+        assert next(c for c in record["checks"] if c["name"] == "training_budget")["passed"]
+
+
+def test_evaluation_must_serve_this_runs_checkpoint_and_its_pinned_model(tmp_path):
+    expected = {**RECIPE["model"], "checkpoint": "r1/global_step_4"}
+    wrong_models = [
+        {**expected, "checkpoint": "another-run/global_step_4"},
+        {**expected, "id": "another/model"},
+        {**expected, "revision": "b" * 40},
+        {"checkpoint": expected["checkpoint"]},
+    ]
+    for index, model in enumerate(wrong_models):
+        record = run(tmp_path / str(index), served_model=model)
+        assert record["status"] == "failed"
+        assert not next(c for c in record["checks"] if c["name"] == "evaluated_checkpoint")["passed"]
 
 
 def test_a_failed_check_fails_the_record(tmp_path):

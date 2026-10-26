@@ -204,15 +204,10 @@ class CheckpointStore:
         if problems:
             raise CheckpointError(f"{published.name}: Hugging Face export incomplete: {'; '.join(problems)}")
         weights = sorted(p for p in hf.iterdir() if p.suffix == ".safetensors")
-        rel = Path(published.manifest["bundle"]["hf_path"])
-        by_path = {f["path"]: f for f in published.manifest["files"]}
-        hashes = {w: (by_path.get(str(rel / w.name)) or {}).get("sha256") for w in weights}
-        # a bundle published without file hashes (hash_files: false) has its weights hashed here, so
-        # that two checkpoints of one model, with shards of the same names and sizes, never match
-        unhashed = [w for w, sha in hashes.items() if not sha]
-        if unhashed:
-            with ThreadPoolExecutor(max_workers=min(8, len(unhashed))) as pool:
-                hashes.update(zip(unhashed, pool.map(_sha256, unhashed)))
+        # Read the current bytes, even when publication recorded hashes: export is also used to
+        # verify that the evaluated weights have not changed since the export stage.
+        with ThreadPoolExecutor(max_workers=min(8, len(weights))) as pool:
+            hashes = dict(zip(weights, pool.map(_sha256, weights)))
         digest = hashlib.sha256()
         for weight in weights:
             digest.update(f"{weight.name}:{hashes[weight]}\n".encode())

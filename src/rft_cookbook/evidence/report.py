@@ -89,6 +89,10 @@ def compare_runs(baseline_dir: str, trained_dir: str, *, train_rows: str | None 
     plans = [json.loads((Path(d) / "plan.json").read_text()) for d in (baseline_dir, trained_dir)]
     mismatched = [k for k in ("task", "task_version", "rows_sha256", "samples", "sampling", "serving", "settings")
                   if plans[0].get(k) != plans[1].get(k)]
+    # The checkpoint differs by design; the base model and pinned revision must not.
+    models = [{k: (p.get("model") or {}).get(k) for k in ("id", "revision")} for p in plans]
+    if models[0] != models[1] or not all(models[0].values()):
+        mismatched.append("model")
     summaries = []
     for directory, plan in zip((baseline_dir, trained_dir), plans):
         records, damaged = read_episodes(Path(directory) / "episodes")

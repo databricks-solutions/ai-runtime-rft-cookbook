@@ -61,7 +61,8 @@ def record(qid, sample, value, *, status="ok", valid=True, split="eval", compone
                                                                  judge=judge))
 
 
-PLAN = {"task": "toy", "task_version": "1", "rows_sha256": "h", "samples": 2, "ids": ["a", "b"], "model": {}}
+PLAN = {"task": "toy", "task_version": "1", "rows_sha256": "h", "samples": 2, "ids": ["a", "b"],
+        "model": {"id": "toy/model", "revision": "a" * 40}}
 
 
 def test_completeness_counts_every_kind_of_gap():
@@ -116,6 +117,24 @@ def test_an_incomplete_evaluation_is_not_comparable(tmp_path):
         (tmp_path / label / "plan.json").write_text(json.dumps({**PLAN, "samples": 1}))
     summary = compare_runs(str(tmp_path / "base"), str(tmp_path / "trained"))["summary"]
     assert summary["paired_questions"] == 1 and summary["incomplete"] == ["trained"] and not summary["comparable"]
+
+
+@pytest.mark.parametrize("other, comparable", [
+    ({"id": "another/model", "revision": "a" * 40}, False),
+    ({"id": "toy/model", "revision": "b" * 40}, False),
+    ({}, False),
+    ({**PLAN["model"], "checkpoint": None}, True),
+])
+def test_a_borrowed_baseline_must_match_the_base_model_and_revision(tmp_path, other, comparable):
+    for label, model in (("base", other), ("trained", {**PLAN["model"], "checkpoint": "r/global_step_4"})):
+        directory = tmp_path / label
+        sink = EpisodeSink(directory / "episodes")
+        sink.write(record("a", 0, 1.0))
+        sink.flush()
+        (directory / "plan.json").write_text(json.dumps({**PLAN, "samples": 1, "ids": ["a"], "model": model}))
+    summary = compare_runs(str(tmp_path / "base"), str(tmp_path / "trained"), resamples=10)["summary"]
+    assert summary["comparable"] is comparable
+    assert ("model" in summary["mismatched_settings"]) is not comparable
 
 
 def test_probes_are_reported_per_split_and_exempt_from_leakage(tmp_path):

@@ -183,6 +183,9 @@ def compare(recipe, paths, rendered) -> None:
     _write(Path(paths["run_dir"]) / "qualification.json", record)
     print(f"[compare] qualification: {record['status']}; "
           + ", ".join(f"{c['name']} {'ok' if c['passed'] else 'FAILED'}" for c in record["checks"]))
+    if record["status"] == "failed":
+        raise SystemExit("[compare] qualification failed: "
+                         + ", ".join(c["name"] for c in record["checks"] if not c["passed"]))
 
 
 def write_receipt(paths, stage: str, overrides: list[str]) -> dict[str, Any]:

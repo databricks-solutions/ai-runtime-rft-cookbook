@@ -160,6 +160,30 @@ async def run_plan(task, client, counter, rows: list[dict[str, Any]], *, samples
     await asyncio.gather(*(one(i, row, k) for i, row in enumerate(rows) for k in range(samples)))
 
 
+def _prepare_output(out: Path, plan: dict[str, Any]) -> None:
+    """Retry an incomplete evaluation without mixing attempts; preserve the earlier evidence."""
+    previous_plan, summary = out / "plan.json", out / "summary.json"
+    if summary.exists() and json.loads(summary.read_text()).get("headline", {}).get("complete") is not False:
+        raise SystemExit(f"{out} already holds an evaluation; use a new label")
+    chunks = list((out / "episodes").glob("*.jsonl"))
+    if previous_plan.exists():
+        if json.loads(previous_plan.read_text()) != plan:
+            raise SystemExit(f"{out} holds a different evaluation plan; use a new label")
+        archive = out / "attempts" / str(time.time_ns())
+        archive.mkdir(parents=True)
+        # Move files individually: the volume supports file rename, not every directory operation.
+        for path in (previous_plan, summary, out / "vllm.log", *chunks):
+            if path.exists():
+                target = archive / path.relative_to(out)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                path.rename(target)
+        print(f"[eval] preserved the incomplete attempt in {archive}", flush=True)
+    elif chunks or summary.exists():
+        raise SystemExit(f"{out} has evaluation evidence without its plan; use a new label")
+    out.mkdir(parents=True, exist_ok=True)
+    previous_plan.write_text(json.dumps(plan, indent=1, sort_keys=True))
+
+
 def evaluate(*, task_name: str, budgets: dict[str, Any], rows: str, model_path: str, out: str,
              model_identity: dict[str, Any], tool_parser: str, reasoning_parser: str | None,
              chat_template_kwargs: dict[str, Any], samples: int, temperature: float, top_p: float,
@@ -170,8 +194,6 @@ def evaluate(*, task_name: str, budgets: dict[str, Any], rows: str, model_path: 
     from transformers import AutoTokenizer
 
     out_dir = Path(out)
-    if (out_dir / "summary.json").exists():
-        raise SystemExit(f"{out_dir} already holds an evaluation; use a new label")
     task = load_task(task_name, resources, **budgets).with_schema_view(schema_view)
     data = list(read_rows(Path(rows)))
     plan = {"task": task.name, "task_version": task.version, "rows": rows, "rows_sha256": file_sha256(Path(rows)),
@@ -182,8 +204,7 @@ def evaluate(*, task_name: str, budgets: dict[str, Any], rows: str, model_path: 
                         "chat_template_kwargs": chat_template_kwargs, "args": list(serve_args),
                         "tensor_parallel": tensor_parallel},
             "schema_view": schema_view, "settings": task.settings()}
-    out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "plan.json").write_text(json.dumps(plan, indent=1, sort_keys=True))
+    _prepare_output(out_dir, plan)
     max_model_len = max_prompt_tokens + task.budgets.max_response_tokens
     sink = EpisodeSink(out_dir / "episodes", prefix="eval", flush_every=64)
     # The server log stays on local disk while it is open (a volume publishes a file only once it
@@ -205,9 +226,9 @@ def evaluate(*, task_name: str, budgets: dict[str, Any], rows: str, model_path: 
             asyncio.run(run_plan(task, client, counter, data, samples=samples, concurrency=concurrency, sink=sink,
                                  model_identity=model_identity, settings=settings, seed=seed))
     finally:
+        sink.flush()
         if local_log.exists():
             shutil.copyfile(local_log, out_dir / "vllm.log")
-    sink.flush()
     records, damaged = read_episodes(out_dir / "episodes")
     summary = summarize(records, plan, damaged=damaged)
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=1, sort_keys=True))

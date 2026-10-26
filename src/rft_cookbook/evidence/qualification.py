@@ -12,7 +12,8 @@ applied, the image (`RFT_IMAGE`), the model and judge tokenizer revisions, the d
   continued to more updates trained under two step counts);
 - calibration: the judge passed its calibration fixtures (recipes with a judge);
 - export: the exported weights are those of the published checkpoint (re-derived from it);
-- evaluated checkpoint: the trained evaluation served that export;
+- training budget: the exported step matches the recipe's requested number of updates;
+- evaluated checkpoint: the trained evaluation served this run's export and pinned model;
 - evaluations complete, comparable (same plan and settings) and free of leakage;
 - parity, when the run checked it.
 
@@ -106,9 +107,19 @@ def record(recipe: dict[str, Any], paths: dict[str, Any], comparison: dict[str, 
         checks.append(_check("export", again["weights_sha256"] == exported.get("weights_sha256"), published.name))
     except (KeyError, TypeError, ValueError, CheckpointError) as error:
         checks.append(_check("export", False, f"{type(error).__name__}: {error}"))
-    served = (trained_plan.get("model") or {}).get("checkpoint") or ""
+    step_key = {"verl": "total_training_steps", "miles": "num_rollout"}.get(recipe["framework"])
+    requested = (recipe.get("train") or {}).get(step_key)
+    checks.append(_check("training_budget",
+                         isinstance(requested, int) and not isinstance(requested, bool) and requested > 0
+                         and exported.get("step") == requested,
+                         f"requested {requested} updates, exported {exported.get('step')}"))
+    trained_model = trained_plan.get("model") or {}
+    served = trained_model.get("checkpoint") or ""
+    expected = f"{paths['run_id']}/{exported.get('name')}"
     checks.append(_check("evaluated_checkpoint",
-                         bool(exported.get("name")) and served.endswith(f"/{exported.get('name')}"), served))
+                         bool(exported.get("name")) and served == expected
+                         and all(trained_model.get(k) == recipe["model"][k] for k in ("id", "revision")),
+                         json.dumps(trained_model, sort_keys=True)))
     checks.append(_check("evaluations_complete", not summary.get("incomplete"),
                          ", ".join(summary.get("incomplete") or [])))
     checks.append(_check("comparable", bool(summary.get("comparable")),

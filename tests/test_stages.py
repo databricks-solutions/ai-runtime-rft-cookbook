@@ -61,6 +61,27 @@ def test_a_search_job_names_its_index_and_the_run_searches_it(monkeypatch, tmp_p
     assert stages.task_resources(load_recipe("math/verl/qwen3.5-2b_h100x8"), paths) is None
 
 
+@pytest.mark.parametrize("failed", [False, True])
+def test_compare_preserves_the_record_and_exits_unsuccessfully_for_failed_qualification(tmp_path, monkeypatch, failed):
+    from rft_cookbook.evidence import qualification, report
+    from rft_cookbook import recipe
+
+    paths = {"run_dir": str(tmp_path), "eval_dir": str(tmp_path / "eval"), "baseline_dir": "baseline",
+             "train_rows": "train.jsonl"}
+    record = {"status": "failed" if failed else "measured", "checks": [{"name": "leakage_clean", "passed": not failed}]}
+    monkeypatch.setattr(stages, "_exported", lambda _: {"step": 4})
+    monkeypatch.setattr(report, "compare_runs", lambda *a, **k: {"summary": {"comparable": not failed}})
+    monkeypatch.setattr(qualification, "record", lambda *a, **k: record)
+    monkeypatch.setattr(recipe, "load_recipe", lambda *a, **k: {})
+    if failed:
+        with pytest.raises(SystemExit, match="qualification failed: leakage_clean"):
+            stages.compare({"name": "toy", "eval": {}}, paths, None)
+    else:
+        stages.compare({"name": "toy", "eval": {}}, paths, None)
+    assert json.loads((tmp_path / "qualification.json").read_text()) == record
+    assert (tmp_path / "comparison.json").is_file()
+
+
 def test_data_preparation_is_the_tasks_own_and_runs_once(monkeypatch, tmp_path):
     from rft_cookbook.data import MANIFEST
     from rft_cookbook.tasks.search import data
