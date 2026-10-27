@@ -16,3 +16,16 @@ dist/
 frameworks/verl/image/certs/*
 !frameworks/verl/image/certs/.gitkeep
 frameworks/verl/image/vendor/
+
+# Credentials and local settings
+.env.*
+.databrickscfg
+*.pem
+*.key
+# Run outputs that belong on a volume, not in git
+checkpoints/
+*.safetensors
+*.pt
+*.ckpt
+wandb/
+mlruns/
