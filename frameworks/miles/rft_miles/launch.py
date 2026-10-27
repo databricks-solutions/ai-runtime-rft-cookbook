@@ -32,7 +32,7 @@ from pathlib import Path
 import yaml
 
 from rft_cookbook.air.stages import (baseline_eval, calibrate, compare, eval_, export, prepare_data, run_until_abort,
-                                     stage_judge, task_resources)
+                                     stage_judge, start_resources, task_resources, write_receipt)
 from rft_cookbook.checkpoints import CheckpointStore
 from rft_miles.agent import CONFIG_KEY, ROW_KEY
 from rft_miles.render import GPUS_PER_NODE, launcher_path
@@ -116,6 +116,7 @@ def _agent_inputs(recipe, paths) -> int:
         "task": recipe["task"], "budgets": dict(recipe.get("agent") or {}), "resources": task_resources(recipe, paths),
         "abort_file": paths["abort_file"],
         "max_consecutive_exclusions": int(recipe["train"].get("max_consecutive_exclusions") or 0),
+        "judge_outage_wait_s": float(recipe["train"].get("judge_outage_wait_s", 1800)),
         "tokenizer": paths["local_hf"], "chat_template_kwargs": model.get("chat_template_kwargs") or {},
         "episode_dir": f"{paths['episodes']}/train", "model": {"id": model["id"], "revision": model["revision"]},
         "tool_parser": model["tool_parser"], "served_model": "model",
@@ -150,6 +151,7 @@ def train(recipe, paths, rendered) -> None:
 
     store = CheckpointStore(paths["checkpoints"], hash_files=False)
     latest, total = store.latest(), int(recipe["train"]["num_rollout"])
+    store.set_retention((recipe.get("checkpoint") or {}).get("keep"))   # the save hook applies it
     if latest is not None and latest.step >= total:
         print(f"[train] {latest.name} already reaches train.num_rollout; nothing to train")
         return
@@ -163,7 +165,7 @@ def train(recipe, paths, rendered) -> None:
     _copy_dir(paths["megatron_dir"], paths["local_megatron"])
     rows = _agent_inputs(recipe, paths)
     resources = task_resources(recipe, paths)
-    process = service.start(recipe["task"], resources, paths["run_id"]) if resources else None
+    process = start_resources(recipe, paths, resources)
     try:
         run = lambda: _run_miles(recipe, paths, rendered, store, latest, total, rows)   # noqa: E731
         if nodes.count == 1:
@@ -215,6 +217,7 @@ def main(argv=None) -> int:
     print(f"[launch] {argv[0]} of {run_id}: {ref} {' '.join(overrides)}".rstrip(), flush=True)
     recipe, paths = _load(rendered)
     os.environ.setdefault("HF_HUB_DISABLE_XET", "1")
+    write_receipt(paths, argv[0], overrides)
     STAGES[argv[0]](recipe, paths, rendered)
     return 0
 

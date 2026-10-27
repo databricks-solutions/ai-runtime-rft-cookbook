@@ -11,6 +11,11 @@ Publication is synchronous. The adapter calls it from the framework's post-save 
 framework reported the save durable. A framework that saves straight into the store (the bundle's
 root is its published location) is published in place: nothing is copied, and the manifest and
 marker are added to the native directory. Large multi-node checkpoints are saved that way.
+
+A bundle's Hugging Face weights are checked as it is published; what is wrong with them is
+recorded in its manifest (`hf_problems`) without failing the publication, since the bundle still
+resumes. Retention never deletes the newest bundle whose weights are complete. The store records
+its own retention (`set_retention`), for a framework whose save hook cannot be configured.
 """
 from __future__ import annotations
 
@@ -19,12 +24,14 @@ import json
 import os
 import shutil
 import time
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 MANIFEST = "rft_checkpoint.json"
 COMPLETE = "RFT_COMPLETE"
+RETENTION = "RFT_RETENTION.json"
 MANIFEST_SCHEMA = "rft-cookbook/checkpoint/v1"
 
 
@@ -80,6 +87,8 @@ class PublishResult:
     bytes: int = 0
     seconds: float = 0.0
     reason: str | None = None
+    hf_problems: list[str] = field(default_factory=list)
+    """What is wrong with the bundle's Hugging Face weights; the bundle is published regardless."""
 
 
 @dataclass
@@ -93,6 +102,11 @@ class Published:
     def hf_path(self) -> str | None:
         rel = self.manifest["bundle"].get("hf_path")
         return str(Path(self.location) / rel) if rel else None
+
+    @property
+    def exportable(self) -> bool:
+        """Its Hugging Face weights were complete when it was published (or before that was checked)."""
+        return bool(self.hf_path) and not self.manifest.get("hf_problems")
 
 
 class CheckpointStore:
@@ -121,6 +135,9 @@ class CheckpointStore:
             manifest = {"schema": MANIFEST_SCHEMA, "bundle": asdict(bundle), "files": files,
                         "hashed": self.hash_files, "published_at": time.time()}
             self._verify_files(target, files)
+            problems = hf_problems(target / bundle.hf_path) if bundle.hf_path else []
+            if bundle.hf_path:
+                manifest["hf_problems"] = problems
             if self.hash_files:
                 for entry in files:
                     entry["sha256"] = _sha256(target / entry["path"])
@@ -130,7 +147,8 @@ class CheckpointStore:
             return PublishResult("failed", bundle.step, str(target), seconds=time.monotonic() - started,
                                  reason=f"{type(error).__name__}: {error}")
         return PublishResult("published", bundle.step, str(target), files=len(files),
-                             bytes=sum(f["size"] for f in files), seconds=time.monotonic() - started)
+                             bytes=sum(f["size"] for f in files), seconds=time.monotonic() - started,
+                             hf_problems=problems)
 
     # ---- query -------------------------------------------------------------------------
 
@@ -186,25 +204,46 @@ class CheckpointStore:
         if problems:
             raise CheckpointError(f"{published.name}: Hugging Face export incomplete: {'; '.join(problems)}")
         weights = sorted(p for p in hf.iterdir() if p.suffix == ".safetensors")
-        rel = Path(published.manifest["bundle"]["hf_path"])
-        by_path = {f["path"]: f for f in published.manifest["files"]}
+        # Read the current bytes, even when publication recorded hashes: export is also used to
+        # verify that the evaluated weights have not changed since the export stage.
+        with ThreadPoolExecutor(max_workers=min(8, len(weights))) as pool:
+            hashes = dict(zip(weights, pool.map(_sha256, weights)))
         digest = hashlib.sha256()
         for weight in weights:
-            entry = by_path.get(str(rel / weight.name))
-            digest.update(f"{weight.name}:{entry.get('sha256') if entry else weight.stat().st_size}\n".encode())
+            digest.update(f"{weight.name}:{hashes[weight]}\n".encode())
         return {"step": published.step, "path": str(hf), "weights": [w.name for w in weights],
-                "weights_sha256": digest.hexdigest()}
+                "weights_sha256": digest.hexdigest(), "weights_hash": "content"}
 
     def retain(self, keep_last: int, keep_steps: set[int] | None = None) -> list[int]:
-        """Delete published bundles beyond the newest `keep_last`, except `keep_steps`. Returns deleted steps."""
+        """Delete published bundles beyond the newest `keep_last`, except `keep_steps` and the newest
+        exportable one. Returns deleted steps."""
         if keep_last < 1:
             raise ValueError("keep_last must be at least 1")
-        keep_steps = keep_steps or set()
-        doomed = [p for p in self.list()[:-keep_last] if p.step not in keep_steps]
+        published = self.list()
+        keep_steps = set(keep_steps or ())
+        exportable = [p for p in published if p.exportable]
+        if exportable:
+            keep_steps.add(exportable[-1].step)
+        doomed = [p for p in published[:-keep_last] if p.step not in keep_steps]
         for p in doomed:
             (Path(p.location) / COMPLETE).unlink()  # first, so a partial delete is never "latest"
             shutil.rmtree(p.location)
         return [p.step for p in doomed]
+
+    def set_retention(self, keep_last: int | None) -> None:
+        """Record how many bundles a save hook keeps (`retention`); None keeps every one."""
+        path = self.root / RETENTION
+        if keep_last is None:
+            path.unlink(missing_ok=True)
+            return
+        if int(keep_last) < 1:
+            raise ValueError("keep_last must be at least 1")
+        self.root.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"keep_last": int(keep_last)}))
+
+    def retention(self) -> int | None:
+        path = self.root / RETENTION
+        return int(json.loads(path.read_text())["keep_last"]) if path.is_file() else None
 
     @staticmethod
     def _verify_files(root: Path, files: list[dict[str, Any]]) -> None:

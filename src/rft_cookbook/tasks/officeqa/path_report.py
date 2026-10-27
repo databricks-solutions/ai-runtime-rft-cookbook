@@ -1,5 +1,6 @@
 # Derived from verl-on-air (Apache License 2.0), usecases/officeqa/path_report.py at 495b583;
-# modified for ai-runtime-rft-cookbook: module docstring shortened. See THIRD_PARTY_NOTICES.md.
+# modified for ai-runtime-rft-cookbook: module docstring shortened; the value gate ignores figures a
+# compute call only printed back. See THIRD_PARTY_NOTICES.md.
 """Pure, model-free checks for OfficeQA path reports: the deterministic layer of the OfficeQA scorer.
 
 Scope of THIS module: the deterministic, CPU-only layer -- report parsing, reference
@@ -523,9 +524,12 @@ def check_references(
 #     separator / decimal / currency marker); bare 1-2 digit integers and
 #     plausible calendar years (1900-2099) are ignored (coincidence/period risk);
 #   * a value counts as present if it matches ANY delivered observation's number
-#     at unit scale or a decimal-scale variant (x/ /1e3, 1e6, 1e9) -- so a leaf
-#     claim that paraphrases units ("1.47 trillion" vs a delivered "1,470,000")
-#     is NOT flagged;
+#     (of a compute output, only one its code computed: a figure written into the
+#     code and printed back is no evidence) at unit scale or a decimal-scale variant
+#     (x/ /1e3, 1e6, 1e9) -- so a leaf claim that paraphrases units ("1.47 trillion"
+#     vs a delivered "1,470,000") is NOT flagged; a figure written with decimals also
+#     counts if it rounds a number of the step's own cited observation ("16.9
+#     billion" for a cited "16,942" million);
 #   * a real number that is merely mis-attributed (present somewhere in the
 #     trace, wrong row/period) is left to the judge, never rejected here.
 _YEAR_LO, _YEAR_HI = 1900, 2099
@@ -562,9 +566,10 @@ def _num_values(text: str) -> set[float]:
     return out
 
 
-def _value_like_numbers(text: str) -> list[float]:
-    """Numbers worth a deterministic presence check (see the module note above)."""
-    vals: list[float] = []
+def _value_like_numbers(text: str) -> list[tuple[float, int]]:
+    """Numbers worth a deterministic presence check (see the module note above), each with the
+    number of decimals it is written with."""
+    vals: list[tuple[float, int]] = []
     for m in _NUMTOK_RE.finditer(text or ""):
         tok = m.group(0)
         body = tok.lstrip("$").replace(",", "")
@@ -583,38 +588,47 @@ def _value_like_numbers(text: str) -> list[float]:
             continue
         if n >= 3 or has_sep or has_dec or has_cur:
             try:
-                vals.append(float(body))
+                vals.append((float(body), len(body.split(".")[1]) if has_dec else 0))
             except ValueError:
                 continue
     return vals
 
 
-def _value_present(v: float, delivered: set[float], *, rel_tol: float = 1e-6) -> bool:
+def _value_present(v: float, delivered: set[float], *, rel_tol: float = 1e-6, half_unit: float = 0.0) -> bool:
+    """``v`` at some scale is a delivered number; with ``half_unit``, also one it rounds."""
     for s in _SCALES:
         target = v * s
         for d in delivered:
-            if d == target or (target != 0.0 and abs(d - target) <= abs(target) * rel_tol):
+            if d == target or (target != 0.0 and abs(d - target) <= max(abs(target) * rel_tol, half_unit * s)):
                 return True
     return False
 
 
 def check_claimed_values(report: ParsedReport, ledger: EpisodeLedger) -> ValueCheck:
     """Deterministic value-fabrication gate. Returns valid=True (nothing to reject) unless a
-    leaf step asserts a value-like figure that appears in NO delivered observation. Never a
-    substitute for the semantic judge; it only removes the blatant, judgment-free fabrications."""
+    leaf step asserts a value-like figure that appears in NO delivered observation (a compute
+    output counts only for figures its code computed, not ones written into the code and printed
+    back). Never a substitute for the semantic judge; it only removes the blatant, judgment-free
+    fabrications."""
     if not report.ok:
         return ValueCheck(True, [])
     delivered: set[float] = set()
     for obs in ledger.observations.values():
         if obs.delivered and obs.delivered_text:
-            delivered |= _num_values(obs.delivered_text)
+            found = _num_values(obs.delivered_text)
+            if obs.is_compute:
+                found -= _num_values(str((obs.args or {}).get("code", "")))
+            delivered |= found
     issues: list[ValueIssue] = []
     for s in report.steps:
         obs = ledger.get(s.observation)
         if obs is None or obs.is_compute or s.depends_on:
             continue  # non-leaf / derived / unresolved -> not a raw looked-up figure
-        for v in _value_like_numbers(s.claim):
-            if not _value_present(v, delivered):
+        # the cited observation's own figures, rounded ("16.9 billion" for its 16,942 million)
+        cited = _num_values(obs.delivered_text) if obs.delivered and obs.delivered_text else set()
+        for v, decimals in _value_like_numbers(s.claim):
+            rounded = decimals > 0 and _value_present(v, cited, half_unit=0.5 * 10 ** -decimals)
+            if not (rounded or _value_present(v, delivered)):
                 issues.append(
                     ValueIssue(
                         s.id,

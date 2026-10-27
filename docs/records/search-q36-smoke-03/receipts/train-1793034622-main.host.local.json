@@ -1,0 +1,18 @@
+{
+ "at": 1793034622.7227619,
+ "code": {
+  "commit": "e151733",
+  "files": 175,
+  "sha256": "352aa1314ae55c61e7f1a9919ec0c02c8ad68f875718364cf8822dca9519e6f4"
+ },
+ "host": "main.host.local",
+ "image": "<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d",
+ "overrides": [
+  "eval.baseline_run=search-q36-01",
+  "stages=[prep,stage_model,train,export,eval,compare]",
+  "train.total_training_steps=3",
+  "train.save_freq=1"
+ ],
+ "recipe_sha256": "e55b34a7a5430c9f04e90abf25bc107b174d28cccb1beb30d5c5a9110c55f314",
+ "stage": "train"
+}

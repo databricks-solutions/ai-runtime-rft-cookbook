@@ -1,6 +1,6 @@
 # Derived from verl-on-air (Apache License 2.0), usecases/officeqa/sandbox.py at b088a42 (its child
 # side); modified for ai-runtime-rft-cookbook: a standalone script configured by RFT_SANDBOX_*
-# variables. See THIRD_PARTY_NOTICES.md.
+# variables, its output kept to RFT_SANDBOX_MAX_OUTPUT. See THIRD_PARTY_NOTICES.md.
 """The child side of `rft_cookbook.tools.sandbox`: one fresh interpreter per call.
 
 Reads Python from stdin, runs it as ordinary Python (the isolation boundary is the kernel
@@ -21,6 +21,7 @@ import sys
 def main() -> None:
     timeout_s = float(os.environ.get("RFT_SANDBOX_TIMEOUT_S", "15"))
     mem_mb = int(os.environ.get("RFT_SANDBOX_MEM_MB", "0"))
+    max_output = int(os.environ.get("RFT_SANDBOX_MAX_OUTPUT", "0"))   # the parent clips to less
     try:
         import resource
 
@@ -66,10 +67,10 @@ def main() -> None:
             exec(compiled, scope)  # noqa: S102 - this process is the sandboxed child
         result["ok"] = True
         value = scope.get("__result__")
-        result["result"] = None if value is None else repr(value)
+        result["result"] = None if value is None else repr(value)[:max_output or None]
     except Exception as error:  # noqa: BLE001
         result["err"] = f"{type(error).__name__}: {error}"
-    result["stdout"] = buffer.getvalue()
+    result["stdout"] = buffer.getvalue()[:max_output or None]
     os.write(1, json.dumps(result).encode("utf-8", "replace"))
 
 

@@ -8,6 +8,7 @@ import pytest
 from verl_support import compose_verl
 
 from rft_cookbook.agent.errors import EpisodeExcluded
+from rft_cookbook.agent.guard import ExclusionGuard
 from rft_cookbook.evidence.sink import read_episodes
 from rft_cookbook.tasks import load_task
 from rft_verl.data import to_verl_rows
@@ -215,7 +216,13 @@ def test_failures_in_a_row_ask_the_launcher_to_stop(tokenizer, tokenizer_dir, tm
         async def generate(self, **_):
             raise ConnectionError("rollout replica gone")
 
-    monkeypatch.setattr(agent_loop, "_FAILED_IN_A_ROW", [0])
+    def streak(n):
+        guard = ExclusionGuard(3)
+        guard.streak = n
+        monkeypatch.setattr(agent_loop, "_GUARD", [guard])
+        return guard
+
+    streak(0)
     abort = tmp_path / "train" / "ABORT.json"
     entry = {"_target_": "rft_verl.agent_loop.CookbookAgentLoop", "task": "math",
              "budgets": {"max_response_tokens": RESPONSE_LENGTH}, "episode_dir": str(tmp_path / "episodes"),
@@ -228,10 +235,10 @@ def test_failures_in_a_row_ask_the_launcher_to_stop(tokenizer, tokenizer_dir, tm
     assert not abort.exists()
     with pytest.raises(EpisodeExcluded):
         run(lambda: _make_loop(tokenizer, tokenizer_dir, DeadServer(), tmp_path, entry=entry))
-    assert "3 episodes in a row failed" in json.loads(abort.read_text())["reason"]
+    assert "3 episodes were excluded" in json.loads(abort.read_text())["reason"]
 
     abort.unlink()
-    monkeypatch.setattr(agent_loop, "_FAILED_IN_A_ROW", [2])   # a prompt with no room for a turn counts too
+    streak(2)   # a prompt with no room for a turn counts too
     with pytest.raises(EpisodeExcluded, match="no room"):
         run(lambda: _make_loop(tokenizer, tokenizer_dir, DeadServer(), tmp_path,
                                entry={**entry, "budgets": {**entry["budgets"], "max_context_tokens": 128}}))
@@ -239,6 +246,20 @@ def test_failures_in_a_row_ask_the_launcher_to_stop(tokenizer, tokenizer_dir, tm
     assert any(r.termination and r.termination.reason == "context_budget" for r in episodes(tmp_path))   # recorded
 
     abort.unlink()
-    monkeypatch.setattr(agent_loop, "_FAILED_IN_A_ROW", [2])
+    guard = streak(2)
     run(lambda: _make_loop(tokenizer, tokenizer_dir, ScriptedServer(tokenizer, ["\\boxed{4}"]), tmp_path, entry=entry))
-    assert agent_loop._FAILED_IN_A_ROW == [0] and not abort.exists()   # a scored episode resets the count
+    assert guard.streak == 0 and not abort.exists()   # a decided episode ends the streak
+
+
+def test_a_list_of_golds_reaches_the_scorer_as_a_list():
+    """Agentic search scores against an answer and its aliases: the parquet keeps them as JSON."""
+    from rft_verl.agent_loop import row_ground_truth
+
+    task = load_task("search")
+    row = {"id": "2hop__1_2", "split": "train", "messages": [{"role": "user", "content": "Question: Q?"}],
+           "ground_truth": ["London", "London, England"], "metadata": {"hops": 2}}
+    verl_row = next(to_verl_rows(task, [row]))
+    assert row_ground_truth(verl_row) == ["London", "London, England"]
+    math = next(to_verl_rows(load_task("math"), [{**row, "ground_truth": "4"}]))
+    assert row_ground_truth(math) == "4" and math["reward_model"]["ground_truth"] == "4"
+    assert row_ground_truth({"reward_model": {"ground_truth": "4"}}) == "4"   # parquet without the JSON copy

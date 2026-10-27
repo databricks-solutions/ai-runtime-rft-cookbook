@@ -1,0 +1,9 @@
+{
+ "name": "global_step_3",
+ "path": "<volume-root>/runs/math-2b-smoke-01/checkpoints/global_step_3/actor/model/huggingface",
+ "step": 3,
+ "weights": [
+  "model.safetensors-00001-of-00001.safetensors"
+ ],
+ "weights_sha256": "3793f96790a85dfef9b149a125fea4b8234948a5b8f38605678e2266ef1a418e"
+}

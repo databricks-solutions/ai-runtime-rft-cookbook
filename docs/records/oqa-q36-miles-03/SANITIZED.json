@@ -1,0 +1,74 @@
+{
+ "files": {
+  "calibration.json": {
+   "original_sha256": "7d8a5c353c8f601a28c81b0c8b8ba7ffdbad5e2675b374f78be227dda8e21d27",
+   "replaced": {}
+  },
+  "comparison.json": {
+   "original_sha256": "904526e1a8a42181a0212269d27521f9d83d22adc0e5c75b9e3fc1e91ed04932",
+   "replaced": {}
+  },
+  "export.json": {
+   "original_sha256": "89cc6e1fe5dc16817922a4881360a423e7cd9aa7e456dcb11167ae6f5cb436af",
+   "replaced": {
+    "<volume-root>": 1
+   }
+  },
+  "qualification.json": {
+   "original_sha256": "7425d37e12245a6243e75f2e7691ff80f141298398436fc7aaf53b8f42c98245",
+   "replaced": {
+    "<registry>/": 9,
+    "<volume-root>": 1
+   }
+  },
+  "receipts/calibrate-1792895903-main.host.local.json": {
+   "original_sha256": "f166b3a0ae7cbf01ceeeccc669302c6b9bb37a6b296b91612ba4d35d34f93cc9",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/compare-1792932107-main.host.local.json": {
+   "original_sha256": "a421923985c2580d485a430ec5142b5f255fec346f8a809dadaf381a3078d067",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/eval-1792928991-main.host.local.json": {
+   "original_sha256": "b1bf26abd947e84450db865ceccb2345e3428fa545e0727d6ab36da45d0588e3",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/export-1792928807-main.host.local.json": {
+   "original_sha256": "292436b62fc7b534563133f308236c9dc7d9f77ef395565aa72afa930d8182c7",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/prep-1792895428-main.host.local.json": {
+   "original_sha256": "5c616a71c5c98243ff9bd243db134a3b2c0ffef11440b23deb9e78ad3dd15aa6",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/stage_judge-1792895712-main.host.local.json": {
+   "original_sha256": "73aeec11a535fa883837703dae173895857381410be73fc38739f77eeb64411a",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/stage_model-1792895569-main.host.local.json": {
+   "original_sha256": "b18fed2ed8c7ec648fa59a210206f1926dc0e3e80f96b03e6d5af50aec180dd2",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/train-1792896137-main.host.local.json": {
+   "original_sha256": "abee45c7a4132b8a09b6d5f5a9a7a53af70be5ce2b193e694604ce5ee6061747",
+   "replaced": {
+    "<registry>/": 1
+   }
+  }
+ },
+ "schema": "rft-cookbook/sanitized/v1"
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the verl image this adapter is pinned to (linux/amd64; about 17 GB).
 #
-#   bash frameworks/verl/image/build.sh <registry>/<repository>:<tag>
+#   bash frameworks/verl/image/build.sh <image>:<tag>
 #
 # PIP_INDEX_URL, if set, reaches the build as a BuildKit secret (never a build arg, so it is not
 # recorded in the image history). Extra docker flags go in BUILD_ARGS, e.g. a proxy:
@@ -9,7 +9,7 @@
 # Behind a TLS-intercepting proxy, put the CA bundle in certs/ first. Pre-fetched wheels and
 # source trees in vendor/ (see README) are used instead of downloading them.
 set -euo pipefail
-TAG="${1:?usage: build.sh <registry>/<repository>:<tag>}"
+TAG="${1:?usage: build.sh <image>:<tag>}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "${HERE}/certs" "${HERE}/vendor"
 SECRET=()
@@ -17,4 +17,4 @@ SECRET=()
 # shellcheck disable=SC2086
 DOCKER_BUILDKIT=1 docker build --platform linux/amd64 ${SECRET[@]+"${SECRET[@]}"} \
   --build-arg IMAGE_TAG="${TAG##*:}" ${BUILD_ARGS:-} -f "${HERE}/Dockerfile" -t "${TAG}" "${HERE}"
-echo "built ${TAG}; push it, pin its digest in site.env (RFT_VERL_IMAGE), and register it with AI Runtime"
+echo "built ${TAG}; push it to your workspace (databricks air images push -p <profile> --source ${TAG} --catalog <catalog> --schema <schema>) and set its Unity Catalog name in site.env (RFT_VERL_IMAGE)"

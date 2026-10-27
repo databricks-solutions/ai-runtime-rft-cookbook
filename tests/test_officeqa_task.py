@@ -11,6 +11,7 @@ import csv
 import json
 import shutil
 import threading
+import time
 import zipfile
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from rft_cookbook.agent.harness import ByteCounter, ChatTurn, run_episode
 from rft_cookbook.scoring.base import score_episode
 from rft_cookbook.scoring.judge import JudgeReply
 from rft_cookbook.tasks import load_task, officeqa
-from rft_cookbook.tasks.officeqa import calibration, data
+from rft_cookbook.tasks.officeqa import calibration, corpus, data
 from rft_cookbook.tools import sandbox
 from rft_cookbook.tools.base import FunctionTool, ToolContext, ToolInfraError, ToolSet
 from rft_cookbook.tools.sandbox import PythonSandbox
@@ -155,6 +156,33 @@ def test_a_tool_infrastructure_failure_crosses_the_service(tmp_path):
         server.shutdown()
 
 
+def test_a_regex_that_backtracks_is_cut_off_and_the_service_keeps_answering(corpus_dir, monkeypatch):
+    with zipfile.ZipFile(corpus_dir / data.ARCHIVE, "a") as archive:
+        archive.writestr("treasury_bulletin_1943_06.txt", "a" * 60 + "b\n| July | " + " | ".join(["5,089"] * 16) + " | total\n")
+    monkeypatch.setattr(corpus, "GREP_REGEX_TIMEOUT_S", 1.0)
+    local = officeqa.local_tools(resources(corpus_dir))
+    server = ToolServer(local)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    remote, slow = RemoteToolSet(server.url, local.schemas()), []
+    try:
+        caller = threading.Thread(target=lambda: slow.append(
+            run_tool(remote, "grep_documents", {"pattern": "(a|aa)+$", "regex": True})))
+        caller.start()
+        time.sleep(0.2)
+        started = time.monotonic()   # re would hold the GIL for the whole match, and this call would wait for it
+        assert run_tool(remote, "grep_documents", {"pattern": "2,602"}).text.startswith("1 match(es)")
+        assert time.monotonic() - started < 0.5
+        caller.join(timeout=10)
+        assert slow[0].text == "Error: regex '(a|aa)+$' took longer than 1 s; use a simpler pattern"
+        # the pattern that stalled a training run's service (re: 38 s on one 74-character row)
+        stalled = r"^.*\|.*July.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|.*\d+.*\|$"
+        assert run_tool(remote, "grep_documents", {"pattern": stalled, "year": "1943", "regex": True}).text.startswith("No matches")
+        assert run_tool(remote, "grep_documents", {"pattern": "(unclosed", "regex": True}).text.startswith(
+            "Error: invalid regex '(unclosed': missing ), unterminated subpattern")
+    finally:
+        server.shutdown()
+
+
 @pytest.mark.skipif(not sandbox.bwrap_available(), reason="needs bubblewrap and user namespaces")
 def test_strict_compute_has_no_network_and_cannot_see_data(tmp_path, monkeypatch):
     secret = tmp_path / "answers.txt"   # the host's /tmp is replaced by a private one inside
@@ -166,6 +194,46 @@ def test_strict_compute_has_no_network_and_cannot_see_data(tmp_path, monkeypatch
     assert network.status == "error" and "unreachable" in network.text
     monkeypatch.setenv("HF_TOKEN", "do-not-leak")
     assert "do-not-leak" not in PythonSandbox("strict").run("import os\nprint(os.environ)").text
+
+
+def test_a_masked_directory_that_holds_the_interpreter_is_masked_all_but_the_interpreter(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    venv = home / "user" / "project" / ".venv"
+    (venv / "bin").mkdir(parents=True)
+    monkeypatch.setattr(sandbox, "MASKED", (str(home), str(tmp_path / "absent")))
+    monkeypatch.setattr(sandbox.sys, "prefix", str(venv))
+    monkeypatch.setattr(sandbox.sys, "executable", str(venv / "bin" / "python"))
+    masked, interpreter = sandbox._masked_dirs()
+    assert masked == [str(home)] and interpreter == [str(venv)]   # the project around the venv stays hidden
+
+
+def test_an_interpreter_under_tmp_comes_back_inside_the_private_tmp(tmp_path, monkeypatch):
+    venv = tmp_path / "ci" / "venv"
+    (venv / "bin").mkdir(parents=True)
+    monkeypatch.setattr(sandbox, "MASKED", (str(tmp_path / "absent"),))
+    for name in ("prefix", "base_prefix"):
+        monkeypatch.setattr(sandbox.sys, name, str(venv))
+    monkeypatch.setattr(sandbox.sys, "executable", str(venv / "bin" / "python"))
+    if not str(venv.resolve()).startswith("/tmp/"):
+        pytest.skip("pytest's temporary directory is not under /tmp here")
+    assert sandbox._masked_dirs() == ([], [str(venv.resolve())])
+
+
+@pytest.mark.skipif(not sandbox.bwrap_available(), reason="needs bubblewrap and user namespaces")
+def test_strict_compute_cannot_see_the_checkout_beside_its_interpreter():
+    checkout = Path(__file__).resolve().parents[1]
+    seen = PythonSandbox("strict", preload=()).run(f"import os\nprint(os.path.exists({str(checkout / 'tests')!r}))")
+    assert seen.text.endswith("False"), seen.text
+
+
+@pytest.mark.parametrize("level", ["best_effort", "off"])
+def test_output_past_the_read_limit_kills_the_child_and_ordinary_output_is_clipped(level, monkeypatch):
+    monkeypatch.setattr(sandbox, "bwrap_available", lambda: False)
+    box = PythonSandbox(level, preload=(), max_output=100)
+    flood = box.run(f"import os\nfor _ in range(64): os.write(1, b'y' * {sandbox.READ_LIMIT // 32})")
+    assert flood.status == "error" and "more than" in flood.text
+    clipped = box.run("print('x' * 10_000)")
+    assert clipped.status == "ok" and clipped.text.endswith("(output truncated)") and len(clipped.text) < 200
 
 
 def test_strict_without_bubblewrap_runs_nothing(monkeypatch):
@@ -240,4 +308,4 @@ def test_the_task_carries_the_measured_budgets_and_needs_a_judge_only_to_score()
     policy = officeqa.judge_policy({"models": ["system.ai.glm-5-3-flash"], "max_model_len": 65536, "max_tokens": 4096})
     assert policy.max_prompt_tokens == 65536 - 4096 - 64 and policy.deadline_s == 600 and policy.retries == 2
     assert load_task("officeqa", resources={"judge": {"id": "glm", "models": ["m"]}}).scorer.policy == \
-        "officeqa/path-report-v1+glm"
+        "officeqa/path-report-v2+glm"

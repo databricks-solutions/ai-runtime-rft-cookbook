@@ -1,0 +1,237 @@
+{
+ "checks": [
+  {
+   "detail": "global_step_3",
+   "name": "export",
+   "passed": true
+  },
+  {
+   "detail": "search-q36-smoke-03/global_step_3",
+   "name": "evaluated_checkpoint",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "evaluations_complete",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "comparable",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "leakage_clean",
+   "passed": true
+  },
+  {
+   "detail": "7 receipts",
+   "name": "same_code",
+   "passed": true
+  }
+ ],
+ "code": {
+  "commit": "e151733",
+  "files": 175,
+  "sha256": "352aa1314ae55c61e7f1a9919ec0c02c8ad68f875718364cf8822dca9519e6f4"
+ },
+ "data": {
+  "dropped": {},
+  "outputs": [
+   {
+    "file": "train.jsonl",
+    "ids_sha256": "ac436a740b133f2bbb7acb7aaf8742b34393dc618f6f6fea6349f6057c02a27a",
+    "rows": 19938,
+    "sha256": "df995e41d3ccb66f5590d871ee8a82d66a35b9492362ab3ed4d81140c331bb87"
+   },
+   {
+    "file": "eval.jsonl",
+    "ids_sha256": "3b0b505b94a46b5feef70c2ff6b7f64eeaacb27eaa33fcb3de7249f2705aac02",
+    "rows": 532,
+    "sha256": "f4d08fcdf06b87fa142f23d0407a73a264350479644769ca8d9117e053599baa"
+   }
+  ],
+  "source": {
+   "repository": "dgslibisey/MuSiQue",
+   "revision": "c8f4f8c9465fb69d31a8eae894c3fd509c4ca321",
+   "train": 19938,
+   "validation": 2417
+  },
+  "split": {
+   "heldout": 500,
+   "heldout_by_hops": {
+    "2": 196,
+    "3": 198,
+    "4": 106
+   },
+   "heldout_rule": "validation rows 500.. stratified by hop count, proportional, seed 20260923",
+   "heldout_sha256": "12b4f232aa61a028f684c690e91020e1836eefc5ede96f237de8c340d1fe417c",
+   "probe": 32,
+   "probe_ids": [
+    "2hop__161785_43074",
+    "3hop1__85073_84360_334118",
+    "2hop__663504_20644",
+    "2hop__107471_440021",
+    "2hop__336874_781580",
+    "3hop1__794285_803028_485952",
+    "2hop__206075_3994",
+    "2hop__367169_2578",
+    "3hop1__94551_65225_37150",
+    "2hop__383_430",
+    "2hop__819531_694982",
+    "4hop1__14045_93667_695397_20634",
+    "2hop__801079_61424",
+    "2hop__131056_43804",
+    "2hop__131056_81842",
+    "3hop1__312602_629330_70419",
+    "2hop__352074_161223",
+    "2hop__384268_207154",
+    "3hop1__465026_35178_826724",
+    "3hop1__428944_194186_725834",
+    "2hop__2545_52453",
+    "2hop__290964_8773",
+    "2hop__116754_821781",
+    "3hop1__75023_58494_51040",
+    "2hop__224575_92217",
+    "2hop__50308_159536",
+    "2hop__94758_417288",
+    "2hop__245438_5303",
+    "4hop1__31753_52584_71250_135051",
+    "2hop__780756_86874",
+    "2hop__716010_79175",
+    "2hop__771312_53028"
+   ],
+   "probe_rule": "the first 32 training questions by sha256(id)",
+   "train": 19938
+  },
+  "task": "search",
+  "tool": "rft_cookbook.tasks.search.data"
+ },
+ "evaluation": {
+  "baseline": "<volume-root>/runs/search-q36-01/eval/baseline",
+  "rows_sha256": "f4d08fcdf06b87fa142f23d0407a73a264350479644769ca8d9117e053599baa",
+  "samples": 1,
+  "sampling": {
+   "seed": 42,
+   "seeds": "seed + index * samples + k",
+   "temperature": 1.0,
+   "top_k": -1,
+   "top_p": 1.0
+  },
+  "schema_view": "full",
+  "serving": {
+   "args": [
+    "--language-model-only"
+   ],
+   "chat_template_kwargs": {},
+   "engine": "vllm",
+   "reasoning_parser": null,
+   "tensor_parallel": 8,
+   "tool_parser": "qwen3_coder"
+  },
+  "settings": {
+   "budgets": {
+    "generation_reserve": 64,
+    "max_context_tokens": 43008,
+    "max_response_tokens": 40960,
+    "max_tool_calls": null,
+    "max_tool_calls_per_turn": 1,
+    "max_turn_tokens": 4096,
+    "max_turns": 16,
+    "tool_output_bytes": 4000,
+    "tool_timeout_s": 60.0
+   },
+   "prompt_sha256": "ad7b4b5703df469ad033fb4a41dba9e7af0a6c4855442a3dc3f0f84294708e62",
+   "retrieval": {
+    "index": "<vs-index>"
+   },
+   "scorer": "search/em-v1",
+   "terminal": {
+    "kind": "answer",
+    "tool": null
+   },
+   "tools_sha256": "ab245baae6e59c3426eb05b67bd372fdaaac002b9097f62db47d4d3fdc2d97b3"
+  },
+  "task": "search",
+  "task_version": "1",
+  "trained": "search-q36-smoke-03/global_step_3"
+ },
+ "image": "<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d",
+ "judge": null,
+ "model": {
+  "id": "Qwen/Qwen3.6-35B-A3B",
+  "revision": "995ad96eacd98c81ed38be0c5b274b04031597b0",
+  "staged_revision": "995ad96eacd98c81ed38be0c5b274b04031597b0"
+ },
+ "recipe": {
+  "checked_in_sha256": "23a8117bf061583be61af04e6b411e67b1eeb85bbfcfd7a2cb6af9c181eebcdc",
+  "deviations": [
+   "train.save_freq",
+   "train.total_training_steps"
+  ],
+  "name": "search/verl/qwen3.6-35b-a3b_h100x16",
+  "overrides": [
+   "eval.baseline_run=search-q36-01",
+   "stages=[prep,stage_model,train,export,eval,compare]",
+   "train.total_training_steps=3",
+   "train.save_freq=1"
+  ],
+  "resolved_sha256": "e55b34a7a5430c9f04e90abf25bc107b174d28cccb1beb30d5c5a9110c55f314"
+ },
+ "result": {
+  "bootstrap_95": [
+   -0.018796992481203006,
+   0.04887218045112782
+  ],
+  "mean_difference": 0.015037593984962405,
+  "splits": {
+   "heldout": {
+    "baseline": 0.282,
+    "bootstrap_95": [
+     -0.024,
+     0.048
+    ],
+    "mean_difference": 0.012,
+    "paired_questions": 500,
+    "trained": 0.294
+   },
+   "probe": {
+    "baseline": 0.3125,
+    "bootstrap_95": [
+     -0.09375,
+     0.21875
+    ],
+    "mean_difference": 0.0625,
+    "paired_questions": 32,
+    "trained": 0.375
+   }
+  }
+ },
+ "run_id": "search-q36-smoke-03",
+ "schema": "rft-cookbook/qualification/v1",
+ "stages": [
+  "{\"image\": \"<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"eval.baseline_run=search-q36-01\", \"stages=[prep,stage_model,train,export,eval,compare]\", \"train.total_training_steps=2\", \"train.save_freq=1\"], \"stage\": \"train\"}",
+  "{\"image\": \"<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"eval.baseline_run=search-q36-01\", \"stages=[prep,stage_model,train,export,eval,compare]\", \"train.total_training_steps=3\", \"train.save_freq=1\"], \"stage\": \"compare\"}",
+  "{\"image\": \"<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"eval.baseline_run=search-q36-01\", \"stages=[prep,stage_model,train,export,eval,compare]\", \"train.total_training_steps=3\", \"train.save_freq=1\"], \"stage\": \"eval\"}",
+  "{\"image\": \"<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"eval.baseline_run=search-q36-01\", \"stages=[prep,stage_model,train,export,eval,compare]\", \"train.total_training_steps=3\", \"train.save_freq=1\"], \"stage\": \"export\"}",
+  "{\"image\": \"<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"eval.baseline_run=search-q36-01\", \"stages=[prep,stage_model,train,export,eval,compare]\", \"train.total_training_steps=3\", \"train.save_freq=1\"], \"stage\": \"train\"}",
+  "{\"image\": \"<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"eval.baseline_run=search-q36-01\", \"stages=[prep,stage_model,train,export,eval,compare]\"], \"stage\": \"prep\"}",
+  "{\"image\": \"<catalog>.<schema>.verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"eval.baseline_run=search-q36-01\", \"stages=[prep,stage_model,train,export,eval,compare]\"], \"stage\": \"stage_model\"}"
+ ],
+ "status": "smoke-tested",
+ "topology": {
+  "accelerator": "GPU_8xH100",
+  "nodes": 2,
+  "rollout_gpus": 8,
+  "timeout_minutes": 240,
+  "train_timeout_minutes": 720,
+  "trainer_gpus": 8
+ },
+ "training": {
+  "published": "global_step_3",
+  "step": 3,
+  "weights_hash": "content",
+  "weights_sha256": "a72b0f16c32cbc5566e797d471452a6c1ec489f290dd4622e5908373612926db"
+ }
+}

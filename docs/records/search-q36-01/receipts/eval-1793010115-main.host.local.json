@@ -1,0 +1,13 @@
+{
+ "at": 1793010115.1070082,
+ "code": {
+  "commit": "593dba3",
+  "files": 175,
+  "sha256": "6209c3a4a63f4c0367cba7f4f646dde9952970a5565975f3e799ed291e5ae2bd"
+ },
+ "host": "main.host.local",
+ "image": "<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d",
+ "overrides": [],
+ "recipe_sha256": "23a8117bf061583be61af04e6b411e67b1eeb85bbfcfd7a2cb6af9c181eebcdc",
+ "stage": "eval"
+}

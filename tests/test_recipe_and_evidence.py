@@ -54,14 +54,15 @@ def test_the_shipped_recipes_resolve():
     assert recipe["train"]["algorithm"] == "grpo" and recipe["compute"]["trainer_gpus"] == 4
 
 
-def record(qid, sample, value, *, status="ok", valid=True, split="eval", components=None):
+def record(qid, sample, value, *, status="ok", valid=True, split="eval", components=None, judge=None):
     return EpisodeRecord(episode_id=f"{qid}_{sample}", task="toy", task_version="1", question_id=qid, split=split,
                          sample_index=sample, status=status, termination=Termination("answer", answer="x"),
-                         score=None if status == "infra_failure" else Score(value, valid, "p",
-                                                                             components=components or {}))
+                         score=None if status != "ok" else Score(value, valid, "p", components=components or {},
+                                                                 judge=judge))
 
 
-PLAN = {"task": "toy", "task_version": "1", "rows_sha256": "h", "samples": 2, "ids": ["a", "b"], "model": {}}
+PLAN = {"task": "toy", "task_version": "1", "rows_sha256": "h", "samples": 2, "ids": ["a", "b"],
+        "model": {"id": "toy/model", "revision": "a" * 40}}
 
 
 def test_completeness_counts_every_kind_of_gap():
@@ -71,6 +72,19 @@ def test_completeness_counts_every_kind_of_gap():
     assert not head["complete"] and head["score_mean_valid"] == 0.5 and head["score_mean_strict"] == 0.25
     full = summarize([record(q, k, 1.0) for q in "ab" for k in range(2)], PLAN)["headline"]
     assert full["complete"] and full["score_mean_strict"] == 1.0
+    driver = summarize([record("a", 0, 1.0), record("a", 1, 1.0), record("b", 0, 1.0),
+                        record("b", 1, 0.0, status="policy_failure")], PLAN)["headline"]
+    assert driver["policy_failures"] == 1 and driver["valid"] == 3 and not driver["complete"]
+
+
+def test_a_fallback_judges_label_enters_the_headline_only_if_its_policy_allows():
+    def run(headline):
+        judge = {"model": "judge-b", "fallback": True, "headline": headline}
+        return summarize([record("a", 0, 1.0), record("a", 1, 1.0), record("b", 0, 1.0),
+                          record("b", 1, 1.0, judge=judge)], PLAN)["headline"]
+    allowed, withheld = run(True), run(False)
+    assert allowed["complete"] and allowed["valid"] == 4 and allowed["fallback_labels"] == 1
+    assert not withheld["complete"] and withheld["valid"] == 3 and withheld["fallback_withheld"] == 1
 
 
 def test_paired_comparison_and_leakage(tmp_path):
@@ -103,6 +117,24 @@ def test_an_incomplete_evaluation_is_not_comparable(tmp_path):
         (tmp_path / label / "plan.json").write_text(json.dumps({**PLAN, "samples": 1}))
     summary = compare_runs(str(tmp_path / "base"), str(tmp_path / "trained"))["summary"]
     assert summary["paired_questions"] == 1 and summary["incomplete"] == ["trained"] and not summary["comparable"]
+
+
+@pytest.mark.parametrize("other, comparable", [
+    ({"id": "another/model", "revision": "a" * 40}, False),
+    ({"id": "toy/model", "revision": "b" * 40}, False),
+    ({}, False),
+    ({**PLAN["model"], "checkpoint": None}, True),
+])
+def test_a_borrowed_baseline_must_match_the_base_model_and_revision(tmp_path, other, comparable):
+    for label, model in (("base", other), ("trained", {**PLAN["model"], "checkpoint": "r/global_step_4"})):
+        directory = tmp_path / label
+        sink = EpisodeSink(directory / "episodes")
+        sink.write(record("a", 0, 1.0))
+        sink.flush()
+        (directory / "plan.json").write_text(json.dumps({**PLAN, "samples": 1, "ids": ["a"], "model": model}))
+    summary = compare_runs(str(tmp_path / "base"), str(tmp_path / "trained"), resamples=10)["summary"]
+    assert summary["comparable"] is comparable
+    assert ("model" in summary["mismatched_settings"]) is not comparable
 
 
 def test_probes_are_reported_per_split_and_exempt_from_leakage(tmp_path):

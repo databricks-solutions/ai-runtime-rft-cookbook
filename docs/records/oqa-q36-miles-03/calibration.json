@@ -1,0 +1,116 @@
+{
+ "checks": [
+  {
+   "case": "supported_arithmetic",
+   "detail": "correct",
+   "expected": 1.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 0,
+   "score": 1.0,
+   "valid": true
+  },
+  {
+   "case": "supported_arithmetic",
+   "detail": "correct",
+   "expected": 1.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 1,
+   "score": 1.0,
+   "valid": true
+  },
+  {
+   "case": "supported_lookup",
+   "detail": "correct",
+   "expected": 1.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 0,
+   "score": 1.0,
+   "valid": true
+  },
+  {
+   "case": "supported_lookup",
+   "detail": "correct",
+   "expected": 1.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 1,
+   "score": 1.0,
+   "valid": true
+  },
+  {
+   "case": "ungrounded_compute",
+   "detail": "unsupported",
+   "expected": 0.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 0,
+   "score": 0.0,
+   "valid": true
+  },
+  {
+   "case": "ungrounded_compute",
+   "detail": "unsupported",
+   "expected": 0.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 1,
+   "score": 0.0,
+   "valid": true
+  },
+  {
+   "case": "wrong_category",
+   "detail": "unsupported",
+   "expected": 0.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 0,
+   "score": 0.0,
+   "valid": true
+  },
+  {
+   "case": "wrong_category",
+   "detail": "unsupported",
+   "expected": 0.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 1,
+   "score": 0.0,
+   "valid": true
+  },
+  {
+   "case": "wrong_period",
+   "detail": "unsupported",
+   "expected": 0.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 0,
+   "score": 0.0,
+   "valid": true
+  },
+  {
+   "case": "wrong_period",
+   "detail": "unsupported",
+   "expected": 0.0,
+   "judge": "system.ai.glm-5-3-flash",
+   "judge_called": true,
+   "pass": true,
+   "repeat": 1,
+   "score": 0.0,
+   "valid": true
+  }
+ ],
+ "policy": "officeqa/path-report-v2+glm-5.3-flash-hosted-support-v1",
+ "status": "PASS"
+}

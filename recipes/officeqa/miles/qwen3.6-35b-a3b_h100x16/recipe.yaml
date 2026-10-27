@@ -1,24 +1,8 @@
-# OfficeQA on upstream miles: Qwen3.6-35B-A3B answers Treasury Bulletin questions with retrieval and
-# compute tools and a cited evidence path; a hosted GLM-5.3-Flash judge checks the evidence.
-#
-# Status: untested. The twin of recipes/officeqa/verl/qwen3.6-35b-a3b_h100x16, matched setting by
-# setting so that the two frameworks' runs compare:
-#   the same   model and revision, data, agent budgets (128 turns, 4,096 tokens a turn, a 98,304-token
-#              context), judge and sandbox, evaluation (vLLM from the verl image, 43 held-out
-#              questions x 4 samples, seed 42; a run compared with the verl run's baseline uses
-#              `eval.baseline_run`), and training: GRPO over 100 updates of 4 prompts x 4 samples,
-#              learning rate 1e-6 constant, low-variance KL 0.01 to the base model, clip 0.2/0.28 and
-#              dual-clip 3.0, token-mean loss, AdamW (weight decay 0.01, betas 0.9/0.999), gradient
-#              clip 1.0, MoE auxiliary loss 1e-3, TP2 x CP4 x EP8 training, no MTP layer, excluded
-#              episodes drop their group (rft_miles.agent), an episode trains as one sequence with
-#              every generated token in context (rft_miles.session), old log-probs recomputed by the
-#              trainer without an importance-sampling correction, saves every 25 updates; and the
-#              hardware: two nodes of 8 H100s, one training, one serving (a TP8 engine), the weights
-#              sent over NCCL after every update.
-#   different  staleness: miles' train_async generates each rollout while the previous one trains, so
-#              every rollout is one version behind, where verl's separate_async may lag by up to 4
-#              (max_off_policy_threshold); SGLang serves the training rollouts where verl uses vLLM;
-#              the data order and random streams.
+# OfficeQA with Qwen3.6-35B-A3B on miles: 16 H100s (8 train, 8 serve).
+# Matches the verl recipe's model, data, agent budgets, judge, optimizer and loss settings.
+# Rollouts use SGLang and lag training by one update; evaluation uses the common vLLM harness.
+# Keep MoE load-balancing loss disabled when reproducing the cross-framework comparison.
+# See README.md for results and the known AI Runtime shutdown limitation.
 extends: agentic/miles
 description: OfficeQA on upstream miles, Qwen3.6-35B-A3B, hosted judge.
 task: officeqa
@@ -92,6 +76,7 @@ rollout:
 
 checkpoint:
   hash_files: false             # sizes are checked; hashing would read every save back from the volume
+  keep: 2                       # as the verl recipe: a save is 555 GB with its optimizer state
 
 compute:
   nodes: 2                            # one trains, one serves (rft_miles/launchers/qwen3_6_35b_a3b.py)

@@ -1,12 +1,12 @@
 """AI Runtime jobs and the run's plan of paths.
 
 A recipe's jobs are checked in next to it, one per stage (`jobs/<stage>.yaml`). A job names its
-recipe in `env_variables.RFT_RECIPE`; `air run --override` fills in what belongs to a workspace
-and a run (`JOB_ENV`, the image, secrets):
+recipe in `env_variables.RFT_RECIPE`; `databricks air run --override` fills in what belongs to a
+workspace and a run (`JOB_ENV`, the image, secrets), one field per `--override`:
 
-    air run -f recipes/math/verl/qwen3.5-2b_h100x8/jobs/train.yaml -p <profile> --override \
-        env_variables.RFT_RUN_ID=math-2b-01 env_variables.RFT_VOLUME_ROOT=<volume root> \
-        environment.docker_image.url=<image>
+    databricks air run -f recipes/math/verl/qwen3.5-2b_h100x8/jobs/train.yaml -p <profile> \
+        --override env_variables.RFT_RUN_ID=math-2b-01 --override env_variables.RFT_VOLUME_ROOT=<volume root> \
+        --override environment.unity_catalog_image=<catalog>.<schema>.<image>:<tag>
 
 Inside the job the launcher reads these back (`from_job_env`) and resolves the recipe from the
 code snapshot. `plan(recipe, site, run_id)` fixes every durable location of a run from the
@@ -23,8 +23,10 @@ from collections.abc import Mapping
 from typing import Any
 
 SNAPSHOT_PATHS = ["pyproject.toml", "README.md", "src", "frameworks", "recipes"]
-# filled in per run with `air run --override env_variables.<name>=...`
+# filled in per run with `databricks air run --override env_variables.<name>=...`
 JOB_ENV = {"RFT_RUN_ID": "the run id", "RFT_VOLUME_ROOT": "the durable root (a Unity Catalog volume)"}
+# workspace resources a task may use, filled in the same way where its jobs name them: name -> plan key
+SITE_ENV = {"RFT_VS_INDEX": "vector_search_index"}   # the Vector Search index agentic search queries
 _RUN_ID = re.compile(r"[a-z0-9][a-z0-9._-]{2,62}")
 
 
@@ -64,6 +66,7 @@ def plan(recipe: dict[str, Any], site: dict[str, Any], run_id: str, *, task_vers
         "local_dir": f"{local}/{run_id}",
         "baseline_dir": f"{root}/runs/{baseline_run}/eval/baseline",
     }
+    out.update({key: site[key] for key in SITE_ENV.values() if site.get(key)})
     tokenizer = ((recipe.get("scoring") or {}).get("judge") or {}).get("tokenizer")
     if tokenizer:   # the judge's chat template counts its prompt tokens; its weights stay elsewhere
         out["judge_tokenizer_dir"] = f"{root}/models/{tokenizer['id'].split('/')[-1]}@{tokenizer['revision'][:12]}-tokenizer"
@@ -74,11 +77,13 @@ def from_job_env(env: Mapping[str, str] | None = None) -> tuple[str, str, dict[s
     """(recipe, run id, workspace settings, recipe overrides) of the running job.
 
     `RFT_SET` holds recipe overrides, shell-quoted and space-separated (`train.seed=7 eval.seed=42`);
-    `RFT_LOCAL_ROOT` moves node-local scratch from /local_disk0/rft."""
+    `RFT_LOCAL_ROOT` moves node-local scratch from /local_disk0/rft; `SITE_ENV` names the workspace
+    resources a task's jobs ask for (`RFT_VS_INDEX`)."""
     env = os.environ if env is None else env
     missing = [name for name in ("RFT_RECIPE", *JOB_ENV) if not env.get(name) or "<" in env[name]]
     if missing:
         raise SystemExit("the job does not say " + ", ".join(JOB_ENV.get(n, "its recipe") for n in missing) +
                          ": submit it with --override " + " ".join(f"env_variables.{n}=..." for n in missing))
     site = {"volume_root": env["RFT_VOLUME_ROOT"], "local_root": env.get("RFT_LOCAL_ROOT") or None}
+    site.update({key: env[name] for name, key in SITE_ENV.items() if env.get(name) and "<" not in env[name]})
     return env["RFT_RECIPE"], env["RFT_RUN_ID"], site, shlex.split(env.get("RFT_SET", ""))

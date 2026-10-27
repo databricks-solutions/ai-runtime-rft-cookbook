@@ -1,0 +1,80 @@
+{
+ "files": {
+  "calibration.json": {
+   "original_sha256": "7d8a5c353c8f601a28c81b0c8b8ba7ffdbad5e2675b374f78be227dda8e21d27",
+   "replaced": {}
+  },
+  "comparison.json": {
+   "original_sha256": "257cf4b3077054e03e391f9fb1a7bbe5dc6acc3378f7cafaf744356cd21858b1",
+   "replaced": {}
+  },
+  "export.json": {
+   "original_sha256": "e24834f564653d15c61d4449b47dcf0e8fcc3f762de44ed0e8070303d0472cf0",
+   "replaced": {
+    "<volume-root>": 1
+   }
+  },
+  "qualification.json": {
+   "original_sha256": "9bac9d10dba87a9da529b10e5dc6c0b0c31d3107a4c79e7e41a157b9c2ad5034",
+   "replaced": {
+    "<registry>/": 10,
+    "<volume-root>": 1
+   }
+  },
+  "receipts/baseline_eval-1792896318-main.host.local.json": {
+   "original_sha256": "a8d364c73061018bce7df68f5446d9d2b920182bfac9d215794fa2ef41b9250f",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/calibrate-1792896130-main.host.local.json": {
+   "original_sha256": "9ee39b70bb3cba1b2fea7f1b5c994c9bc772e44dc29c4a1032a75973617c6a63",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/compare-1792922121-main.host.local.json": {
+   "original_sha256": "e25a4f46449dfd8f56c87cc55a3f18fed69d3b11e13eb55c82b8b138fac01f7d",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/eval-1792918655-main.host.local.json": {
+   "original_sha256": "604999adc822d728df9048dbf8a4e1fc82972196fc8cee490c4e02f215bc1191",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/export-1792918468-main.host.local.json": {
+   "original_sha256": "d946622e1188f23a68aa4648fe4b77539db62aad14c60fe062727a18a419ae5a",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/prep-1792895559-main.host.local.json": {
+   "original_sha256": "f07ce806fa7fb27abd2bd36f3580c5f765c674e5f1528c8664d0fe8db482c6f3",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/stage_judge-1792895935-main.host.local.json": {
+   "original_sha256": "c59cc29c69c22ca0278a41c0e545402cb4e05c2f436cbd917b5e44bf54d9e9d9",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/stage_model-1792895747-main.host.local.json": {
+   "original_sha256": "2f4b1ba03e348f3f5dba4ab05756c6f61e7fab679e23ec1407d992cb62dd664b",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/train-1792896318-main.host.local.json": {
+   "original_sha256": "447370abb889d5ddc7620daf77c050ae04c39100e6bd4138ec0f26e0174e087b",
+   "replaced": {
+    "<registry>/": 1
+   }
+  }
+ },
+ "schema": "rft-cookbook/sanitized/v1"
+}

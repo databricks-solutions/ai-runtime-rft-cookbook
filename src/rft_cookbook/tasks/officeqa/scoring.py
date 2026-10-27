@@ -14,7 +14,8 @@
    the report and the cited evidence intact. Score 1 only if the judge says supported.
 
 Everything up to the judge is deterministic. A judge failure or unparsable verdict raises
-`JudgeError`, so the score is invalid (infrastructure), never a zero.
+`JudgeError`, so the score is invalid (infrastructure), never a zero; so is a report whose cited
+evidence does not fit the judge's prompt budget.
 """
 from __future__ import annotations
 
@@ -174,7 +175,7 @@ class OfficeQAScorer:
 
     def __init__(self, judge: Judge, policy: JudgePolicy, count_tokens: Callable[[list[dict]], int]):
         self.judge, self.judge_policy, self.count_tokens = judge, policy, count_tokens
-        self.policy = f"officeqa/path-report-v1+{policy.id}"
+        self.policy = f"officeqa/path-report-v2+{policy.id}"
 
     async def score(self, episode: EpisodeRecord, ground_truth: Any, metadata: dict[str, Any]) -> RewardResult:
         question = metadata.get("question")
@@ -221,14 +222,16 @@ class OfficeQAScorer:
             messages, receipt = await asyncio.to_thread(support_messages, record, report, ledger, budget=budget,
                                                         count=self.count_tokens)
         except ReportBudgetExceeded as error:
-            c["report_over_budget"] = 1.0
-            return RewardResult(True, 0.0, c, detail=f"over_budget: {error}")
+            c["report_over_budget"] = 1.0   # the judge cannot see the evidence: undecided, not wrong
+            return RewardResult(False, 0.0, c, detail=f"over_budget: {error}")
         c["judge_called"] = 1.0
         reply = await self.judge.complete(messages, self.judge_policy)
         verdict = parse_verdict(reply.content, reply.finish_reason)
         supported = verdict["path_status"] == path_report.SUPPORTED
         c.update(judge_supported=float(supported), judge_path_score=float(verdict["path_score"]))
+        fallback = reply.model != self.judge_policy.models[0]
         judge = {"policy": self.judge_policy.id, "model": reply.model, "attempts": reply.attempts,
-                 "fallback": reply.model != self.judge_policy.models[0], "verdict": verdict["path_status"],
+                 "fallback": fallback, "headline": not fallback or self.judge_policy.fallback_in_headline,
+                 "verdict": verdict["path_status"],
                  "issues": verdict.get("issues", []), "request": receipt, "usage": reply.usage}
         return RewardResult(True, float(supported), c, judge=judge, detail="correct" if supported else "unsupported")

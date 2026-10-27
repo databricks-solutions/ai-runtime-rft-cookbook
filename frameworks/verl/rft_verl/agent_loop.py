@@ -17,8 +17,10 @@ An excluded episode (infrastructure failure, invalid score, truncated terminal t
 verl's V1 trainer marks the prompt group failed, drops the whole group and refills it, so an
 excluded sample never reaches the update and never biases its group's baseline. verl refills
 forever, so a broken dependency (a judge outage, a loop that cannot be built) would spin without
-training: after `max_consecutive_exclusions` episodes in a row that failed in one process, the
-loop writes `abort_file`, and the launcher stops the run (rft_verl.launch).
+training: after `max_consecutive_exclusions` episodes in one process that failed without a decided
+one between them (rft_cookbook.agent.guard; a judge outage first pauses for
+`judge_outage_wait_s`), the loop writes `abort_file`, and the launcher stops the run
+(rft_verl.launch).
 """
 from __future__ import annotations
 
@@ -36,19 +38,19 @@ from verl.utils.profiler import simple_timer
 
 from rft_cookbook.agent.episode import TERMINATIONS, Attestation, eligibility, token_mask_sha256
 from rft_cookbook.agent.errors import EpisodeExcluded, InfraError
+from rft_cookbook.agent.guard import ExclusionGuard
 from rft_cookbook.agent.harness import new_record
 from rft_cookbook.agent.policy import EpisodePolicy, ParsedCall, split_reasoning
 from rft_cookbook.agent.spec import AgentTask
 from rft_cookbook.air.stages import request_abort
 from rft_cookbook.evidence.sink import shared_sink
-from rft_cookbook.scoring.base import score_episode
 from rft_cookbook.tasks import load_task
 from rft_cookbook.tools.base import ToolContext
 
 logger = logging.getLogger(__name__)
 
 AGENT_NAME = "rft_agent"
-_FAILED_IN_A_ROW = [0]   # episodes in a row this process excluded or could not run
+_GUARD: list[ExclusionGuard] = []   # one per process: agent loops are created per episode
 
 
 @lru_cache(maxsize=8)
@@ -57,6 +59,15 @@ def _task(name: str, budgets_json: str, resources_json: str = "null") -> AgentTa
     return load_task(name, json.loads(resources_json), **json.loads(budgets_json))
 
 
+
+def row_ground_truth(kwargs: dict) -> Any:
+    """The row's ground truth as the task wrote it: `extra_info.ground_truth_json` (rft_verl.data), else
+    verl's `reward_model.ground_truth` text (parquet written before the JSON copy was kept)."""
+    extra = kwargs.get("extra_info") or {}
+    if extra.get("ground_truth_json") is not None:
+        return json.loads(extra["ground_truth_json"])
+    return (kwargs.get("reward_model") or {}).get("ground_truth")
+
 class _Episode:
     def __init__(self, task: AgentTask, policy: EpisodePolicy, context: ToolContext, sample_id: str):
         self.task, self.policy, self.context, self.sample_id = task, policy, context, sample_id
@@ -64,22 +75,30 @@ class _Episode:
         self.agent_data = None
 
 
-def _count_failure(abort_file: str | None, limit: int, reason: str) -> None:
-    _FAILED_IN_A_ROW[0] += 1
-    if abort_file and _FAILED_IN_A_ROW[0] == limit:
-        logger.error("rft: %d episodes in a row failed (last: %s); asking the launcher to stop", limit, reason)
-        request_abort(abort_file, f"{limit} episodes in a row failed in one agent-loop process; last: {reason}")
+def _guard(limit: int, wait_s: float) -> ExclusionGuard:
+    if not _GUARD:
+        _GUARD.append(ExclusionGuard(limit, wait_s=wait_s))
+    return _GUARD[0]
+
+
+def _count(abort_file: str | None, guard: ExclusionGuard, record, excluded: bool, reason: str = "") -> None:
+    stop = guard.record(record, excluded, reason)
+    if stop and abort_file:
+        logger.error("rft: %s; asking the launcher to stop", stop)
+        request_abort(abort_file, f"in one agent-loop process, {stop}")
 
 
 class CookbookAgentLoop(ToolAgentLoop):
     def __init__(self, *args, task: str, budgets: dict[str, Any] | None = None, episode_dir: str | None = None,
                  model: dict[str, Any] | None = None, resources: dict[str, Any] | None = None,
-                 abort_file: str | None = None, max_consecutive_exclusions: int = 32, **kwargs):
-        self.abort_file, self.max_failures = abort_file, int(max_consecutive_exclusions)
+                 abort_file: str | None = None, max_consecutive_exclusions: int = 32,
+                 judge_outage_wait_s: float = 1800.0, **kwargs):
+        self.abort_file = abort_file
+        self.guard = _guard(int(max_consecutive_exclusions), float(judge_outage_wait_s))
         try:
             self._setup(args, kwargs, task, budgets, episode_dir, model, resources)
         except Exception as error:
-            _count_failure(self.abort_file, self.max_failures, f"building the loop: {type(error).__name__}: {error}")
+            _count(self.abort_file, self.guard, None, True, f"building the loop: {type(error).__name__}: {error}")
             raise
 
     def _setup(self, args, kwargs, task, budgets, episode_dir, model, resources) -> None:
@@ -108,7 +127,7 @@ class CookbookAgentLoop(ToolAgentLoop):
         except EpisodeExcluded:
             raise   # counted where it was decided
         except Exception as error:
-            _count_failure(self.abort_file, self.max_failures, f"{type(error).__name__}: {error}")
+            _count(self.abort_file, self.guard, None, True, f"{type(error).__name__}: {error}")
             raise
 
     async def _run(self, sampling_params: dict[str, Any], **kwargs):
@@ -131,17 +150,17 @@ class CookbookAgentLoop(ToolAgentLoop):
         except EpisodeExcluded as error:   # decided before the first turn: recorded and counted below
             excluded = str(error)
         record = episode.policy.finalize()
-        ground_truth = (kwargs.get("reward_model") or {}).get("ground_truth")
-        if record.status != "infra_failure":
-            await score_episode(self.task.scorer, record, ground_truth, metadata)
+        ground_truth = row_ground_truth(kwargs)
+        if record.status == "ok":   # a failed episode is never scored
+            await self.guard.score(self.task.scorer, record, ground_truth, metadata)
         record.collection = [self._attest(record, episode.agent_data)]
         if self.sink:
             self.sink.write(record)
         attestation = record.collection[0]
         if attestation.eligibility == "excluded" or output is None:
-            _count_failure(self.abort_file, self.max_failures, excluded or f"{record.status}: {attestation.reason}")
+            _count(self.abort_file, self.guard, record, True, excluded or f"{record.status}: {attestation.reason}")
             raise EpisodeExcluded(excluded or attestation.reason or "no output", record)
-        _FAILED_IN_A_ROW[0] = 0
+        _count(self.abort_file, self.guard, record, False)
         output.reward_score = record.score.value
         output.extra_fields["reward_extra_info"] = self._metrics(record)
         output.extra_fields["rft_episode_id"] = record.episode_id

@@ -1,0 +1,67 @@
+# Multi-hop search with Qwen3.6-35B-A3B on verl: 16 H100s (8 train, 8 serve).
+# Uses a 16-turn agent and exact-match reward, evaluated on 500 held-out MuSiQue questions.
+# Set RFT_VS_INDEX in site.env. rft_cookbook.tasks.search describes the required corpus and schema;
+# the corpus includes the held-out questions' source passages and distractors.
+# See README.md for results and the trade-off between answer rate and answer precision.
+extends: agentic/verl
+description: Agentic search (MuSiQue) on verl, Qwen3.6-35B-A3B, Databricks Vector Search.
+task: search
+stages: [prep, stage_model, baseline_eval, train, export, eval, compare]
+
+model:
+  id: Qwen/Qwen3.6-35B-A3B
+  revision: 995ad96eacd98c81ed38be0c5b274b04031597b0
+  tool_parser: qwen3_coder
+  reasoning_parser: null              # the harness splits </think> itself, as training does
+  serve_args: [--language-model-only]
+  chat_template_kwargs: {}
+
+data:
+  max_prompt_tokens: 2048             # with the task's 40,960-token response budget: a 43,008 context
+
+agent:                                # the task's budgets (4,096 tokens per turn), with 16 turns, not 12
+  max_turns: 16
+
+eval:
+  samples: 1                          # 532 episodes: one per question, paired by question (McNemar)
+  temperature: 1.0
+  top_p: 1.0
+  top_k: -1
+  concurrency: 32
+  gpu_memory_utilization: 0.8
+  tensor_parallel: 8
+  request_timeout_s: 600
+  probe_splits: [probe]               # training questions evaluated on purpose, reported apart
+
+train:
+  rollout_n: 16
+  ppo_mini_batch_size: 2              # 32 trajectories an update
+  parameter_sync_step: 1
+  total_training_steps: 50            # the prototype's held-out gains came by its 20th update
+  lr: 2.0e-6
+  kl_loss_coef: 0.01                  # low-variance KL to the base model, as in the OfficeQA recipes
+  save_freq: 25
+  seed: 42
+
+strategy:
+  tp: 2
+  cp: 4
+  ep: 8
+  remove_padding: true
+  fused_kernels: true
+
+checkpoint:
+  location: volume                    # ~490 GB a save, saved where it is published
+  hash_files: false
+  keep: 2
+
+rollout:
+  tensor_parallel: 8
+
+compute:
+  nodes: 2
+  accelerator: GPU_8xH100
+  trainer_gpus: 8
+  rollout_gpus: 8
+  timeout_minutes: 240
+  train_timeout_minutes: 720

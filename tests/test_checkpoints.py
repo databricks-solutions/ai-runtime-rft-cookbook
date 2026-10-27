@@ -106,6 +106,56 @@ def test_retention_keeps_the_newest_and_the_pinned(tmp_path):
     assert not any((tmp_path / "volume" / f"global_step_{s}" / COMPLETE).exists() for s in (1, 3))
 
 
+def test_incomplete_hf_weights_are_recorded_at_publish_and_retention_keeps_the_last_complete_ones(tmp_path):
+    store = CheckpointStore(tmp_path / "volume", hash_files=False)
+    for step in (1, 2, 3):
+        bundle = native_save(tmp_path / "local", step)
+        if step > 1:   # the framework's export broke after the first save; the bundles still resume
+            next((Path(bundle.root) / bundle.hf_path).glob("*.safetensors")).unlink()
+        result = store.publish(bundle)
+        assert result.status == "published" and bool(result.hf_problems) is (step > 1)
+    assert [p.exportable for p in store.list()] == [True, False, False]
+    assert store.retain(keep_last=1) == [2]   # step 1 is kept: no newer bundle has complete weights
+    assert [p.step for p in store.list()] == [1, 3]
+
+
+def test_the_export_hash_covers_the_weights_content_when_the_bundle_was_published_without_hashes(tmp_path):
+    def exported(root: Path, hash_files: bool, fill: bytes) -> dict:
+        store = CheckpointStore(root, hash_files=hash_files)
+        bundle = native_save(root, 100)
+        for shard in (Path(bundle.root) / "actor" / "model" / "huggingface").glob("*.safetensors"):
+            shard.write_bytes(fill * shard.stat().st_size)   # same names and sizes, other weights
+        assert store.publish(bundle).status == "published"
+        return store.export(store.latest())
+
+    one, other = exported(tmp_path / "a", False, b"a"), exported(tmp_path / "b", False, b"b")
+    assert one["weights_sha256"] != other["weights_sha256"]
+    # hashed when published or when exported: the same weights give the same hash
+    assert exported(tmp_path / "c", True, b"a")["weights_sha256"] == one["weights_sha256"]
+
+
+@pytest.mark.parametrize("hash_files", [True, False])
+def test_export_rechecks_weight_content_instead_of_reusing_a_publication_hash(tmp_path, hash_files):
+    store = CheckpointStore(tmp_path / "volume", hash_files=hash_files)
+    assert store.publish(native_save(tmp_path / "local", 4)).status == "published"
+    published = store.latest()
+    before = store.export(published)
+    shard = next(Path(published.hf_path).glob("*.safetensors"))
+    shard.write_bytes(b"x" * shard.stat().st_size)
+    assert store.export(published)["weights_sha256"] != before["weights_sha256"]
+
+
+def test_the_store_records_its_retention(tmp_path):
+    store = CheckpointStore(tmp_path / "volume")
+    assert store.retention() is None
+    store.set_retention(2)
+    assert CheckpointStore(tmp_path / "volume").retention() == 2
+    store.set_retention(None)
+    assert store.retention() is None
+    with pytest.raises(ValueError):
+        store.set_retention(0)
+
+
 def test_a_save_inside_the_store_is_published_in_place(tmp_path):
     store = CheckpointStore(tmp_path / "volume", hash_files=False)
     bundle = native_save(tmp_path / "volume", 25)

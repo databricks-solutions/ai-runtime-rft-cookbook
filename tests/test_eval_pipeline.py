@@ -2,7 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import sys
+from contextlib import nullcontext
 from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
 
 from rft_cookbook.agent.harness import ByteCounter, ChatTurn
 from rft_cookbook.eval.run import VllmServer, run_plan
@@ -84,6 +90,59 @@ def test_a_model_is_served_from_a_complete_local_copy(tmp_path):
     (model / "config.json").write_text('{"changed": true}')
     assert local_copy(str(model), str(tmp_path / "local")) == str(served)   # a finished copy is reused
     assert (served / "config.json").read_text() == "{}"
+
+
+def test_an_interrupted_evaluation_retries_without_duplicate_episodes(tmp_path, monkeypatch):
+    from rft_cookbook.data import write_rows
+    from rft_cookbook.eval import run
+
+    monkeypatch.setitem(sys.modules, "transformers", SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(from_pretrained=lambda *_: None)))
+    server = nullcontext()
+    server.base_url = "unused"
+    monkeypatch.setattr(run, "VllmServer", lambda *a, **k: server)
+    monkeypatch.setattr(run, "OpenAIChatClient", lambda **k: Answering())
+    monkeypatch.setattr(run, "TemplateCounter", lambda *a: ByteCounter())
+    rows = tmp_path / "rows.jsonl"
+    write_rows(rows, [{"id": q, "split": "eval", "messages": [{"role": "user", "content": "2+2"}],
+                      "ground_truth": "4", "metadata": {}} for q in ("a", "b")])
+    out = tmp_path / "eval"
+    args = dict(task_name="math", budgets={}, rows=str(rows), model_path="unused", out=str(out),
+                model_identity={"id": "toy", "revision": "a" * 40}, tool_parser="toy", reasoning_parser=None,
+                chat_template_kwargs={}, samples=1, temperature=0.0, top_p=1.0, concurrency=1,
+                gpu_memory_utilization=0.8, max_prompt_tokens=1024, seed=42, gpus=1)
+    original = run.run_plan
+
+    async def interrupted(task, client, counter, data, **kwargs):
+        await original(task, client, counter, data[:1], **kwargs)
+        raise RuntimeError("interrupted after one episode")
+
+    monkeypatch.setattr(run, "run_plan", interrupted)
+    with pytest.raises(RuntimeError, match="interrupted"):
+        run.evaluate(**args)
+    assert len(read_episodes(out / "episodes")[0]) == 1   # flushed even on failure
+    monkeypatch.setattr(run, "run_plan", original)
+    summary = run.evaluate(**args)
+    assert summary["headline"]["complete"] and summary["headline"]["duplicates"] == 0
+    archived = list((out / "attempts").iterdir())
+    assert len(archived) == 1 and len(read_episodes(archived[0] / "episodes")[0]) == 1
+    with pytest.raises(SystemExit, match="already holds an evaluation"):
+        run.evaluate(**args)
+
+
+def test_an_incomplete_summary_can_retry_but_a_changed_plan_cannot(tmp_path):
+    from rft_cookbook.eval.run import _prepare_output
+
+    plan = {"model": {"id": "toy", "revision": "a" * 40}, "ids": ["a"]}
+    _prepare_output(tmp_path, plan)
+    (tmp_path / "summary.json").write_text(json.dumps({"headline": {"complete": False}}))
+    with pytest.raises(SystemExit, match="different evaluation plan"):
+        _prepare_output(tmp_path, {**plan, "ids": ["b"]})
+    assert not (tmp_path / "attempts").exists()
+    _prepare_output(tmp_path, plan)
+    archive = next((tmp_path / "attempts").iterdir())
+    assert json.loads((archive / "summary.json").read_text())["headline"]["complete"] is False
+    assert not (tmp_path / "summary.json").exists()
 
 
 def test_the_client_states_top_k_so_no_server_default_applies():

@@ -75,7 +75,7 @@
 #   The bundled NCCL is now 2.29.7; validate NET/OFI on a multi-node GPU run.
 #
 # BUILD (amd64 — force the platform, Apple Silicon defaults to arm64):
-#   bash frameworks/verl/image/build.sh <registry>/<repository>:<tag>
+#   bash frameworks/verl/image/build.sh <image>:<tag>
 # =============================================================================
 # Pinned by digest: the tag is mutable. (2026-09-23: still what the tag serves.)
 FROM databricksruntime/air:dcs-base-aws-runtime-cu13@sha256:8da6cc766e745239ed46f573344a6cad351deb2c0caf3135b26e98f20e9197c0

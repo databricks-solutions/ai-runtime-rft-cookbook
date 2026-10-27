@@ -1,0 +1,71 @@
+{
+ "files": {
+  "comparison.json": {
+   "original_sha256": "81a922275fd256a40206bca2ff4bbd6618b044120b42f05e4b39e5e03c9c1c6d",
+   "replaced": {}
+  },
+  "export.json": {
+   "original_sha256": "62cf8bdc232369900c83d03b8989751c8d6dbfc6757f32c51595ffede5566176",
+   "replaced": {
+    "<volume-root>": 1
+   }
+  },
+  "qualification.json": {
+   "original_sha256": "b2b6496747cd25c752ceb0d36c602bf8bd53cf55dacbcaef5b498ad288daa396",
+   "replaced": {
+    "<registry>/": 9,
+    "<volume-root>": 1,
+    "<vs-index>": 1
+   }
+  },
+  "receipts/baseline_eval-1792967532-main.host.local.json": {
+   "original_sha256": "b6691ee575ac6c3ffa833be230b2dfa6b773210ad9c0504aea1d74779ec15af1",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/compare-1792973452-main.host.local.json": {
+   "original_sha256": "c42c6e59115cd33264b0f020ff20853cd6273b41d55ff6267bfb29647ccc47bf",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/eval-1792971844-main.host.local.json": {
+   "original_sha256": "b6abf2ba9601bfddda4f4aceaf276eb50852f1c846edd5569a9b4b8a6ebe66e1",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/export-1792971712-main.host.local.json": {
+   "original_sha256": "5020e93b5d239172beab1f88349d4f517f5b9f9c85fc6a2c5b06928162610a0b",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/prep-1792967275-main.host.local.json": {
+   "original_sha256": "3f16bace3943f270c736afe2ce6368694dc4b2f862405d5c97350745d1696537",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/stage_model-1792967407-main.host.local.json": {
+   "original_sha256": "5cbf1dd9a670ce725b3aabbc1b7d584035e8c1e34ec24fcb8c84c4e383840799",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/train-1792967532-main.host.local.json": {
+   "original_sha256": "61218df17ea565eff828d4bae2baf105ba584e311ae1fdedd355317ffd0b1770",
+   "replaced": {
+    "<registry>/": 1
+   }
+  },
+  "receipts/train-1792969743-main.host.local.json": {
+   "original_sha256": "125f23941c657264486a8115c3dab009287dad2346c0dd7ac02f5ad519fe1db8",
+   "replaced": {
+    "<registry>/": 1
+   }
+  }
+ },
+ "schema": "rft-cookbook/sanitized/v1"
+}

@@ -109,6 +109,10 @@ def warm(resources: dict[str, Any]) -> None:
     loaded = corpus.load_corpus(Path(resources["data_dir"]))
     if resources.get("require_bm25", True) and loaded.retriever is None:
         raise RuntimeError("bm25s is not importable: search would fall back to keyword overlap")
+    try:   # grep's regex deadline; without it one policy pattern can stall the service
+        corpus.regex_engine.compile("ok").search("ok", timeout=1.0, concurrent=True)
+    except TypeError as error:
+        raise RuntimeError(f"regex {corpus.regex_engine.__version__} cannot time out a match") from error
 
 
 def judge_policy(config: dict[str, Any]) -> JudgePolicy:
@@ -148,7 +152,7 @@ class TaskScorer:
 
     def __init__(self, config: dict[str, Any] | None):
         self.config = config
-        self.policy = f"officeqa/path-report-v1+{judge_policy(config).id}" if config else "officeqa/path-report-v1"
+        self.policy = f"officeqa/path-report-v2+{judge_policy(config).id}" if config else "officeqa/path-report-v2"
         self._scorer: OfficeQAScorer | None = None
         self._lock = threading.Lock()
 
@@ -178,6 +182,16 @@ def build_scorer(config: dict[str, Any]) -> OfficeQAScorer:
 
 def scorer(judge, policy, count_tokens) -> OfficeQAScorer:
     return OfficeQAScorer(judge, policy, count_tokens)
+
+
+def run_resources(recipe: dict[str, Any], paths: dict[str, Any]) -> dict[str, Any]:
+    """The tool service (named after the run) over the run's corpus, the sandbox and the judge."""
+    scoring = recipe.get("scoring") or {}
+    out = {"tool_service": paths["run_id"], "data_dir": f"{paths['data_dir']}/corpus",
+           "sandbox": scoring.get("sandbox", "strict"), "compute": scoring.get("compute") or {}}
+    if scoring.get("judge"):
+        out["judge"] = {**scoring["judge"], "tokenizer": paths["judge_tokenizer_dir"]}
+    return out
 
 
 def task(resources: dict[str, Any] | None = None, **budget_overrides) -> AgentTask:

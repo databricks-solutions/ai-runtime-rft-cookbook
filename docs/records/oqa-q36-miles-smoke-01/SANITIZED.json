@@ -1,0 +1,92 @@
+{
+ "files": {
+  "calibration.json": {
+   "original_sha256": "7d8a5c353c8f601a28c81b0c8b8ba7ffdbad5e2675b374f78be227dda8e21d27",
+   "replaced": {}
+  },
+  "comparison.json": {
+   "original_sha256": "d692116a1e04d5eb9c76cb85f4b38a7f695f6bc94e8c44385c248cbf220c1959",
+   "replaced": {}
+  },
+  "export.json": {
+   "original_sha256": "b3a8763d6982ef4a223b04718bd6241c0f0b6912c6ceee6f9476c2a72b0eb677",
+   "replaced": {
+    "<volume-root>": 1
+   }
+  },
+  "qualification.json": {
+   "original_sha256": "14ac93374675699b84bbb93ad5ab815a9b45024213c4b2d99cd21ee5a7cd07a0",
+   "replaced": {
+    "<catalog>.<schema>.": 10,
+    "<volume-root>": 1
+   }
+  },
+  "receipts/calibrate-1793025072-main.host.local.json": {
+   "original_sha256": "3f971658ff37c40571d3b6a277b2a8d43806f4475d67114e4505ddeb03946831",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/compare-1793038987-main.host.local.json": {
+   "original_sha256": "13a028241ac3f898ad9394e4627dea57baa40c95cc1436f1c7c2b11241e993b9",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/eval-1793032882-main.host.local.json": {
+   "original_sha256": "8d573884ee4a713acfa7d558880558c3fbf64078fafacc67db0cf10c092322cb",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/export-1793032577-main.host.local.json": {
+   "original_sha256": "f813d220446a18edec5fc7003cfda8ab98b8f775d720117dc079b84316fff1ab",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/prep-1793024582-main.host.local.json": {
+   "original_sha256": "a4024ff11a7fd017991c35bceb65949358698f1599846d372dde6c5afbffce38",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/stage_judge-1793024945-main.host.local.json": {
+   "original_sha256": "a1ac49d1db53972cfdf1c83bc397187fe8cc6277071f597e18035394b3ccda3a",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/stage_model-1793024760-main.host.local.json": {
+   "original_sha256": "791a255cdd33fea6dedd9f01d8fe52e641765d0062ed50742a84ff05ba199c3a",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/train-1793025354-main.host.local.json": {
+   "original_sha256": "a06b2650563d561f62952269e4f0205c8d17c68081aeefc089357d9ce0b3fe90",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/train-1793028584-main.host.local.json": {
+   "original_sha256": "b079e56f3fcdd9f9c292c4b1f23b97a6f06bea1b56f1b01e31fe2cadd503106f",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/train-1793028826-main.host.local.json": {
+   "original_sha256": "89655a8fdbd6c81b94b4d6354ab87c323f02c7e5a88b0e4c457b672fb5169006",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/train-1793031975-main.host.local.json": {
+   "original_sha256": "92f800759682ae669afe02e13754e51d889ab67020258d97137865e3acbf9afb",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  }
+ },
+ "schema": "rft-cookbook/sanitized/v1"
+}

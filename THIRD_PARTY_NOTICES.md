@@ -8,7 +8,9 @@ not legal advice and does not establish what any model or dataset may be used fo
 
 ## Files derived from other projects
 
-| file | origin | licence |
+verl-on-air is the earlier open-source prototype (Apache-2.0) that this cookbook grew out of.
+
+| file | origin | license |
 |---|---|---|
 | `src/rft_cookbook/tasks/math/_vendor/prm800k_grader.py` | `grade_answer` from verl (commit 8718ca30) `verl/utils/reward_score/prime_math/__init__.py` (PRIME team), itself from OpenAI's PRM800K grader | Apache-2.0 (verl, PRIME); PRM800K: MIT |
 | `src/rft_cookbook/tasks/math/_vendor/math_normalize.py` | verl (commit 8718ca30) `prime_math/math_normalize.py`, from the MATH release's answer normalization (Hendrycks et al., 2021) | Apache-2.0; MIT (MATH) |
@@ -16,6 +18,7 @@ not legal advice and does not establish what any model or dataset may be used fo
 | `src/rft_cookbook/tasks/math/{grading,calculator,data}.py`, `tests/test_math_{grading,calculator}.py` | verl-on-air `usecases/math/` | Apache-2.0 |
 | `src/rft_cookbook/tasks/officeqa/answer_match.py` | the OfficeQA benchmark's `reward.py` (github.com/databricks/officeqa), by way of verl-on-air | Apache-2.0 |
 | `src/rft_cookbook/tasks/officeqa/{answer_check,path_report,scoring,corpus,chunker,html_table_parser,data,calibration}.py`, `tools.json`, `data.lock.json` | verl-on-air `usecases/officeqa/` | Apache-2.0 |
+| `src/rft_cookbook/tasks/search/{answer,retrieval,data}.py`, `heldout.ids` | verl-on-air `usecases/agentic-search/` (`reward.py`, `tool.py`, `prep_data.py`, `make_splits.py`, `splits/musique_test.ids`) | Apache-2.0 |
 | `src/rft_cookbook/tools/{sandbox,sandbox_child}.py` | verl-on-air `usecases/officeqa/sandbox.py` | Apache-2.0 |
 | `src/rft_cookbook/air/stage_model.py` | verl-on-air `engine/stage_model.py` | Apache-2.0 |
 | `frameworks/verl/image/*` | verl-on-air `docker/` | Apache-2.0 |
@@ -26,7 +29,7 @@ The last-`\boxed{}` extraction in `tasks/math/grading.py` follows the MATH bench
 
 ## Used, not copied
 
-| what | used for | licence |
+| what | used for | license |
 |---|---|---|
 | verl (commit 8718ca30) | the RL framework of the verl adapter (from its image only) | Apache-2.0 |
 | vLLM, Megatron-Core, Megatron-Bridge, Transformer Engine, apex, flash-attn, PyTorch, Ray, Transformers | the training and inference stack in the verl image (`frameworks/verl/image/*.lock`) | each project's own (Apache-2.0, BSD-3-Clause, MIT) |
@@ -36,10 +39,10 @@ The last-`\boxed{}` extraction in `tasks/math/grading.py` follows the MATH bench
 
 ## Models and datasets (downloaded at a pinned revision; not redistributed)
 
-| what | used for | where to read its licence |
+| what | used for | where to read its license |
 |---|---|---|
 | Qwen3.5 (2B and larger), Qwen3.6-35B-A3B | policies | the model cards on Hugging Face |
-| GLM-5.3-Flash (and its 4-layer slice) | policy; hosted judge | the model cards on Hugging Face |
+| GLM-5.3-Flash | policy; hosted judge | the model cards on Hugging Face |
 | MATH (`DigitalLearningGmbH/MATH-lighteval`; mirror `EleutherAI/hendrycks_math`) | math training | the MATH release (MIT) |
 | MATH-500 (`HuggingFaceH4/MATH-500`) | math evaluation | its dataset card |
 | OfficeQA (`databricks/officeqa`) | OfficeQA questions and corpus | the OfficeQA release (code Apache-2.0; data CC BY-SA, see its LICENSE-CC-BY-SA) |

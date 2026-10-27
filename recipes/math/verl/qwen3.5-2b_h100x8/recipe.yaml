@@ -1,8 +1,7 @@
-# Math quickstart: Qwen3.5-2B with a calculator on one 8xH100 node (4 trainer + 4 rollout GPUs).
-# MATH train levels 1-3, evaluated on MATH-500 before and after training.
-# Status: untested (no qualification record yet). This recipe qualifies plumbing (two updates,
-# publish, resume, one more update, export, evaluate the export), not a learning result. GPU
-# acceptance run 2026-10-21: every stage passed; MATH-500 61.8% -> 61.0%, no change, as expected.
+# Math quickstart: Qwen3.5-2B on 8 H100s (4 train, 4 serve).
+# Trains on MATH levels 1-3 with a calculator, then evaluates on MATH-500.
+# Two updates exercise the complete workflow in about 50 minutes; they are not a quality benchmark.
+# Evaluation results and supporting evidence are linked from README.md.
 extends: agentic/verl
 description: Math quickstart on verl, Qwen3.5-2B, 1 node.
 task: math

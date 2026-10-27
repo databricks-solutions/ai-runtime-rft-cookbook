@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from rft_cookbook.air.jobs import JOB_ENV, SNAPSHOT_PATHS
+from rft_cookbook.air.jobs import JOB_ENV, SITE_ENV, SNAPSHOT_PATHS
 from rft_cookbook.recipe import load_recipe, recipes_root
 from rft_verl.render import GPU_STAGES, GPUS_PER_NODE, LAUNCHER, STAGE_ENV
 
@@ -34,12 +34,14 @@ def test_each_job_runs_its_stage_of_its_recipe(ref):
         env = job["env_variables"]
         assert env["RFT_RECIPE"] == ref
         assert all(env[name].startswith("<") for name in JOB_ENV)   # filled in with --override
-        assert job["environment"]["docker_image"]["url"].startswith("<")
+        assert all(env[name].startswith("<") for name in SITE_ENV if name in env)   # a workspace's index too
+        assert job["environment"] == {"unity_catalog_image": job["environment"]["unity_catalog_image"]}
+        assert job["environment"]["unity_catalog_image"].startswith("<")
         assert all(v == "secret_scope/hf_token" for v in (job.get("secrets") or {}).values())   # filled in too
         assert all(env.get(k) == v for k, v in STAGE_ENV.get(stage, {}).items())
-        snapshot = job["code_source"]["snapshot"]
-        assert (path.parent / snapshot["root_path"]).resolve() == ROOT.parent
-        assert snapshot["include_paths"] == SNAPSHOT_PATHS
+        code = job["code_source"]   # `databricks air`: the code's root, relative to the job's directory
+        assert (path.parent / code["root_path"]).resolve() == ROOT.parent
+        assert code["include_paths"] == SNAPSHOT_PATHS
         gpu = stage in GPU_STAGES
         want = (per_node * compute["nodes"] if stage == "train" else per_node) if gpu else 1
         assert job["compute"] == {"num_accelerators": want,

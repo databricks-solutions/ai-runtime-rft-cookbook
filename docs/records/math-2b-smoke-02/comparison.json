@@ -1,0 +1,64 @@
+{
+ "summary": {
+  "baseline": {
+   "complete": true,
+   "damaged_lines": 0,
+   "duplicates": 0,
+   "fallback_labels": 0,
+   "fallback_withheld": 0,
+   "infra_failures": 0,
+   "invalid_scores": 0,
+   "missing": 0,
+   "planned": 500,
+   "policy_failures": 0,
+   "present": 500,
+   "score_mean_strict": 0.616,
+   "score_mean_valid": 0.616,
+   "unplanned": 0,
+   "valid": 500
+  },
+  "bootstrap_95": [
+   -0.012,
+   0.054
+  ],
+  "comparable": true,
+  "incomplete": [],
+  "leakage": {
+   "clean": true,
+   "exempt_probe_rows": 0,
+   "shared_ids": 0,
+   "shared_questions": 0
+  },
+  "mcnemar_exact_p": 0.28878428041410487,
+  "mean_difference": 0.02,
+  "mismatched_settings": [],
+  "paired_questions": 500,
+  "trained": {
+   "complete": true,
+   "damaged_lines": 0,
+   "duplicates": 0,
+   "fallback_labels": 0,
+   "fallback_withheld": 0,
+   "infra_failures": 0,
+   "invalid_scores": 0,
+   "missing": 0,
+   "planned": 500,
+   "policy_failures": 0,
+   "present": 500,
+   "score_mean_strict": 0.636,
+   "score_mean_valid": 0.636,
+   "unplanned": 0,
+   "valid": 500
+  }
+ },
+ "terminations": {
+  "baseline": {
+   "answer": 362,
+   "length": 138
+  },
+  "trained": {
+   "answer": 376,
+   "length": 124
+  }
+ }
+}

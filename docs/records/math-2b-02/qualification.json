@@ -1,0 +1,189 @@
+{
+ "checks": [
+  {
+   "detail": "global_step_2",
+   "name": "export",
+   "passed": true
+  },
+  {
+   "detail": "math-2b-02/global_step_2",
+   "name": "evaluated_checkpoint",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "evaluations_complete",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "comparable",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "leakage_clean",
+   "passed": true
+  },
+  {
+   "detail": "7 receipts",
+   "name": "same_code",
+   "passed": true
+  }
+ ],
+ "code": {
+  "commit": "7c2a9f1",
+  "files": 159,
+  "sha256": "c5539a166fa351fc3d484ed1be92a2ebc0b2aafca947633d663795cd28861d85"
+ },
+ "data": {
+  "filters": {
+   "eval_limit": 0,
+   "ground_truth": "a clean `answer` field, else the solution's last \\boxed{}",
+   "levels": [
+    1,
+    2,
+    3
+   ],
+   "train_limit": 0
+  },
+  "levels": {
+   "train": {
+    "1": 564,
+    "2": 1348,
+    "3": 1590
+   }
+  },
+  "outputs": [
+   {
+    "file": "train.jsonl",
+    "ids_sha256": "fad622c2af1f07a6c53df1aca5cf05c3ecbdfa092e07a60507eec807cb764cb7",
+    "rows": 3502,
+    "sha256": "6a64800d4bcc3b603d5665c99a07a48ce2e6d70b6eb276903b811c5c69b6fdd5"
+   },
+   {
+    "file": "eval.jsonl",
+    "ids_sha256": "b28cb7b910cd8d46b5b94032d4a6f8352d708b6ab92d04237e873cc0ef3b52b0",
+    "rows": 500,
+    "sha256": "4e268e32c9a66025ae7d2411e6feecae3a0c8148a016dd98afcd920dafd3dafe"
+   }
+  ],
+  "sources": [
+   {
+    "config": null,
+    "content": {
+     "test": [
+      5000,
+      "13d5c4873d6a6b184618aad7d1ff5b748c0adcbc56656f916d2b0a8bf8de08b5"
+     ],
+     "train": [
+      7500,
+      "fbdc8b6908196fdde6f076560b176af917c439bbe85fe0bf6ea5db274ea60ccc"
+     ]
+    },
+    "hf_id": "DigitalLearningGmbH/MATH-lighteval",
+    "mirror_of": null,
+    "revision": "0530c78699ea5e8eb5530600900e1f328b48acad"
+   },
+   {
+    "config": null,
+    "hf_id": "HuggingFaceH4/MATH-500",
+    "revision": "6e4ed1a2a79af7d8630a6b768ec859cb5af4d3be"
+   }
+  ],
+  "task": "math",
+  "tool": "rft_cookbook.tasks.math.data"
+ },
+ "evaluation": {
+  "baseline": "<volume-root>/runs/math-2b-02/eval/baseline",
+  "rows_sha256": "4e268e32c9a66025ae7d2411e6feecae3a0c8148a016dd98afcd920dafd3dafe",
+  "samples": 1,
+  "sampling": {
+   "seed": 42,
+   "seeds": "seed + index * samples + k",
+   "temperature": 0.0,
+   "top_k": -1,
+   "top_p": 1.0
+  },
+  "schema_view": "full",
+  "serving": {
+   "args": [
+    "--language-model-only"
+   ],
+   "chat_template_kwargs": {},
+   "engine": "vllm",
+   "reasoning_parser": null,
+   "tensor_parallel": 1,
+   "tool_parser": "qwen3_coder"
+  },
+  "settings": {
+   "budgets": {
+    "generation_reserve": 128,
+    "max_context_tokens": null,
+    "max_response_tokens": 4096,
+    "max_tool_calls": null,
+    "max_tool_calls_per_turn": 1,
+    "max_turn_tokens": 2048,
+    "max_turns": 4,
+    "tool_output_bytes": 1024,
+    "tool_timeout_s": 10.0
+   },
+   "prompt_sha256": "41db3414a209ca4b3dcf3e2669ec8b08374d0b6fc6f579c2330cacc1661b2353",
+   "scorer": "math/rule-v1",
+   "terminal": {
+    "kind": "answer",
+    "tool": null
+   },
+   "tools_sha256": "a09093c5e0f74569b43f5da22318945de3e55aade0c8a48fb3c310136ae6e374"
+  },
+  "task": "math",
+  "task_version": "1",
+  "trained": "math-2b-02/global_step_2"
+ },
+ "image": "<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d",
+ "judge": null,
+ "model": {
+  "id": "Qwen/Qwen3.5-2B",
+  "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+  "staged_revision": "15852e8c16360a2fea060d615a32b45270f8a8fc"
+ },
+ "recipe": {
+  "checked_in_sha256": "db9718376c671cd3866cab8726421482e645c60d978377cad413ce2471c36ee4",
+  "deviations": [],
+  "name": "math/verl/qwen3.5-2b_h100x8",
+  "overrides": [],
+  "resolved_sha256": "db9718376c671cd3866cab8726421482e645c60d978377cad413ce2471c36ee4"
+ },
+ "result": {
+  "bootstrap_95": [
+   -0.028,
+   0.032
+  ],
+  "mean_difference": 0.002,
+  "splits": null
+ },
+ "run_id": "math-2b-02",
+ "schema": "rft-cookbook/qualification/v1",
+ "stages": [
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"baseline_eval\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"compare\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"eval\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"export\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"prep\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"stage_model\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"train\"}"
+ ],
+ "status": "measured",
+ "topology": {
+  "accelerator": "GPU_8xH100",
+  "nodes": 1,
+  "rollout_gpus": 4,
+  "timeout_minutes": 60,
+  "trainer_gpus": 4
+ },
+ "training": {
+  "published": "global_step_2",
+  "step": 2,
+  "weights_sha256": "31c0000c423c75c9ac0b244a7844e9a132439d402e9efb0cad7b6bd65f117645"
+ }
+}

@@ -1,0 +1,65 @@
+{
+ "files": {
+  "comparison.json": {
+   "original_sha256": "33e23105003d068537063f671e0b6cc06dc7e689a71110244cb2585630368d6f",
+   "replaced": {}
+  },
+  "export.json": {
+   "original_sha256": "77299d9202f109c0752e888fb717300012c39fa4c3718f72c8256d593d5f8ab9",
+   "replaced": {
+    "<volume-root>": 1
+   }
+  },
+  "qualification.json": {
+   "original_sha256": "72c401998adf146515b0ce6e9252936e24e7d3fcc6c3e002253230be2fda55b0",
+   "replaced": {
+    "<catalog>.<schema>.": 8,
+    "<volume-root>": 1,
+    "<vs-index>": 1
+   }
+  },
+  "receipts/compare-1793040231-main.host.local.json": {
+   "original_sha256": "0ef82514873f31c6e6b5f44445e23e64c9a1ecfb2a51c33ef9853cd0836039c6",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/eval-1793037776-main.host.local.json": {
+   "original_sha256": "28a8dd54a2fcc345e3a12270309c3a211c083838e04123da39699f88c4d3e6d3",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/export-1793037516-main.host.local.json": {
+   "original_sha256": "4aaaf2615d89797d3d448f4328ff7dbf2fe3c313aba4ce71674e498d5ec12764",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/prep-1793031752-main.host.local.json": {
+   "original_sha256": "fae9914df5c9ea831c9e791388a23f50a14a0dfd5b718ea45880020f591fd964",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/stage_model-1793032092-main.host.local.json": {
+   "original_sha256": "31e44d43f855185379591e15f73b844234234c67c60853bc9680fcd6f0a7c5ed",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/train-1793032326-main.host.local.json": {
+   "original_sha256": "95767affdf7e884a591fc1925550b326dcbe43f7dc9bc411ca2535e3ad4a9890",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/train-1793034622-main.host.local.json": {
+   "original_sha256": "63691f13591ce95ddae19ee20cfbd08d2086895c29d967f9fa9ea4ccbf48168b",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  }
+ },
+ "schema": "rft-cookbook/sanitized/v1"
+}

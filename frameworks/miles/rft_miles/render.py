@@ -41,7 +41,9 @@ AGENT = "rft_miles.agent.run"
 AGENT_MODE = "inline"   # on the rollout's event loop, not miles' default (subproc): see rft_miles.agent
 REWARD = "rft_miles.reward.reward"
 MATCHER = "rft_miles.session.matches"   # a replayed turn as the harness read it: one lineage per episode
+POSTPROCESS = "rft_miles.attest.postprocess"   # miles' default, then each sample's retention attestation
 POST_SAVE = "rft_miles.checkpoint.publish"
+DIAGNOSTICS = "rft_miles.diagnostics.before_train_step"
 HF_DIR = "hf"   # a bundle's Hugging Face weights (train.save_hf), next to Megatron's
 LOCK = json.loads((Path(__file__).with_name("miles.lock.json")).read_text())   # the pinned upstream miles
 
@@ -110,7 +112,8 @@ def miles_args(recipe: dict[str, Any], paths: dict[str, Any], task=None) -> list
             "--global-batch-size", str(int(t["rollout_batch_size"]) * int(t["n_samples_per_prompt"])),
             "--rollout-temperature", str(t["temperature"]), "--rollout-seed", str(t["seed"]), "--seed", str(t["seed"]),
             "--custom-generate-function-path", GENERATE, "--custom-agent-function-path", AGENT,
-            "--use-session-server", "v2", "--session-message-matcher", MATCHER, "--custom-rm-path", REWARD,
+            "--use-session-server", "v2", "--session-message-matcher", MATCHER,
+            "--session-sample-postprocessor-path", POSTPROCESS, "--custom-rm-path", REWARD,
             "--sglang-tool-call-parser", m["tool_parser"],
             # a request field the client leaves out takes OpenAI's default, never the model's own
             # generation_config.json (GLM-5.3-Flash: top_p 0.95; Qwen3.6: top_k 20)
@@ -134,6 +137,8 @@ def miles_args(recipe: dict[str, Any], paths: dict[str, Any], task=None) -> list
     for key, flag in ALGORITHM.items():
         if t.get(key) is not None:
             args += [flag, str(t[key])]
+    if t.get("diagnostics"):   # observed, not trained: the entropy is detached when its coefficient is 0
+        args += ["--custom-megatron-before-train-step-hook-path", DIAGNOSTICS, "--observe-training-entropy"]
     if task is not None:   # prompts the context cannot hold are filtered out, as verl filters them
         prompt = int(recipe["data"]["max_prompt_tokens"])
         args += ["--rollout-max-prompt-len", str(prompt),

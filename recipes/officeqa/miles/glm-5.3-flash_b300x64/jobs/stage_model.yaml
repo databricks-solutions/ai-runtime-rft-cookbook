@@ -5,13 +5,10 @@ compute:
   num_accelerators: 8
   accelerator_type: GPU_8xB300
 environment:
-  docker_image:
-    url: <miles-image>
+  unity_catalog_image: <miles-image>
 code_source:
-  type: snapshot
-  snapshot:
-    root_path: ../../../../..
-    include_paths: [pyproject.toml, README.md, src, frameworks, recipes]
+  root_path: ../../../../..
+  include_paths: [pyproject.toml, README.md, src, frameworks, recipes]
 env_variables:
   RFT_RECIPE: officeqa/miles/glm-5.3-flash_b300x64
   RFT_RUN_ID: <run-id>

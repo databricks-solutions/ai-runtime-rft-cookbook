@@ -1,0 +1,70 @@
+{
+ "files": {
+  "comparison.json": {
+   "original_sha256": "290985d320664e55870647c75214b67b5625cbd4ad390209a82d67df401fb769",
+   "replaced": {}
+  },
+  "export.json": {
+   "original_sha256": "cf3508a345fc4afbb3c9f40aaf84a3eb0e7cd1ccf43bde5eaa46132859e61200",
+   "replaced": {
+    "<volume-root>": 1
+   }
+  },
+  "qualification.json": {
+   "original_sha256": "fee463ccf7682ae4e3487facde59eec8e6720fa93b45fb27c87e6ec070d0eb4b",
+   "replaced": {
+    "<catalog>.<schema>.": 9,
+    "<volume-root>": 1
+   }
+  },
+  "receipts/baseline_eval-1793024072-main.host.local.json": {
+   "original_sha256": "dfddc38214b8081a439200536386ab282fcb7997b93f4be48d0dffd43e8d4c79",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/compare-1793027733-main.host.local.json": {
+   "original_sha256": "0fde06f0dd01ab61d81147d0803619d7e3245845067a080c89a4119eababef3e",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/eval-1793027217-main.host.local.json": {
+   "original_sha256": "159828ffe84de491ad3ba372326ad1dc4f55075b3a844600aa4baa788cf73acf",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/export-1793026935-main.host.local.json": {
+   "original_sha256": "81ce9d0015d912bf1161346e3b94731351070a5922005c5c7f4967d42afafea6",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/prep-1793023588-main.host.local.json": {
+   "original_sha256": "a7b34580a37fdd93a6bc1ea2a7b6d229e46e249b35edc687b40257917c61a61b",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/stage_model-1793023835-main.host.local.json": {
+   "original_sha256": "183dc1c4c63841516329cf26a82dbca50f132be1e3e585e4474ad711400f2205",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/train-1793024068-main.host.local.json": {
+   "original_sha256": "89e9a7c1b82b311346fa1ef8a6eac61bddd62a769a1668df52511ecb29a252e5",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  },
+  "receipts/train-1793025635-main.host.local.json": {
+   "original_sha256": "a6e278b2e8d8e25b13f98de514af3493edd7be14b744ce4e615895bc59d72abc",
+   "replaced": {
+    "<catalog>.<schema>.": 1
+   }
+  }
+ },
+ "schema": "rft-cookbook/sanitized/v1"
+}

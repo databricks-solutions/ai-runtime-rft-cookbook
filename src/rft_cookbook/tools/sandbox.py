@@ -1,6 +1,7 @@
 # Derived from verl-on-air (Apache License 2.0), usecases/officeqa/sandbox.py at b088a42 (its parent
 # side); modified for ai-runtime-rft-cookbook: sandbox levels, ToolResult output, the child as a
-# separate script. Output text is unchanged. See THIRD_PARTY_NOTICES.md.
+# separate script, the child's output read with a limit. Output text is unchanged. See
+# THIRD_PARTY_NOTICES.md.
 """Run model-written Python in a fresh child interpreter, isolated by the kernel.
 
 Levels:
@@ -37,6 +38,9 @@ MASKED = ("/Volumes", "/dbfs", "/home", "/root", "/local_disk0", "/mnt", "/media
 CHILD = Path(__file__).with_name("sandbox_child.py")
 CHILD_IN_SANDBOX = "/tmp/_rft_sandbox_child.py"
 STRICT_FEATURES = "bwrap:user,net,pid,ipc,uts,ro-root,empty-proc,private-tmp,masked,clearenv"
+# What the parent reads of each of the child's streams: the child keeps its own output to a few
+# times `max_output`, so only a child that writes to its file descriptors directly comes near this.
+READ_LIMIT = 1 << 20
 FALLBACK_FEATURES = "subprocess:clearenv,rlimits"
 
 _probe_lock = threading.Lock()
@@ -82,16 +86,13 @@ class PythonSandbox:
                                        env=env, close_fds=True)
         except Exception as error:  # noqa: BLE001 - never fall back to running in-process
             raise ToolInfraError(f"compute sandbox failed to launch ({type(error).__name__}: {error})") from error
-        try:
-            out, err = process.communicate(code.encode("utf-8"), timeout=self.timeout_s)
-        except subprocess.TimeoutExpired:
-            process.kill()   # --die-with-parent takes the child with bwrap
-            try:
-                process.communicate(timeout=5)
-            except Exception:  # noqa: BLE001
-                pass
+        out, err, timed_out = _communicate(process, code.encode("utf-8"), self.timeout_s)
+        if timed_out:
             return ToolResult(self._clip(f"Error: TimeoutError: code execution exceeded {self.timeout_s:.0f}s"),
                               status="timeout", sandbox=reached)
+        if len(out) > READ_LIMIT:
+            return ToolResult(f"Error: compute wrote more than {READ_LIMIT} bytes of output", status="error",
+                              sandbox=reached)
         text = self._render(out, err, process.returncode)
         return ToolResult(text, status="error" if text.startswith("Error:") else "ok", sandbox=reached)
 
@@ -116,6 +117,7 @@ class PythonSandbox:
                "OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "NUMEXPR_NUM_THREADS": "1",
                "PYTHONHASHSEED": "0", "PYTHONDONTWRITEBYTECODE": "1",
                "RFT_SANDBOX_TIMEOUT_S": str(self.timeout_s), "RFT_SANDBOX_MEM_MB": str(self.mem_mb),
+               "RFT_SANDBOX_MAX_OUTPUT": str(4 * self.max_output),
                "RFT_SANDBOX_PRELOAD": ",".join(self.preload)}
         # interpreter discovery only: never PYTHONPATH, which could expose the snapshot or corpus
         for key in ("VIRTUAL_ENV", "PYTHONHOME", "LD_LIBRARY_PATH"):
@@ -127,8 +129,11 @@ class PythonSandbox:
         argv = [shutil.which("bwrap"), "--unshare-user", "--unshare-net", "--unshare-pid", "--unshare-ipc",
                 "--unshare-uts", "--die-with-parent", "--ro-bind", "/", "/", "--tmpfs", "/proc", "--dev", "/dev",
                 "--tmpfs", "/tmp"]
-        for directory in _masked_dirs():
+        masked, interpreter = _masked_dirs()
+        for directory in masked:
             argv += ["--tmpfs", directory]
+        for directory in interpreter:   # Python must still start: its own directories come back read-only
+            argv += ["--ro-bind", directory, directory]
         # the child script's own directory may be masked; bwrap resolves the bind source outside
         argv += ["--ro-bind", str(CHILD), CHILD_IN_SANDBOX, "--chdir", "/tmp", "--clearenv"]
         for key, value in self._child_env().items():
@@ -161,16 +166,49 @@ class PythonSandbox:
         return text if len(text) <= self.max_output else text[:self.max_output] + "\n... (output truncated)"
 
 
-def _masked_dirs() -> list[str]:
-    """The directories to mask, except one that holds the interpreter (Python must still start)."""
+def _communicate(process: subprocess.Popen, code: bytes, timeout_s: float) -> tuple[bytes, bytes, bool]:
+    """`(stdout, stderr, timed_out)`. Like `communicate`, but each stream is read only up to
+    `READ_LIMIT` bytes (and one more, to tell): a child that writes more is killed, so its output
+    never fills the parent's memory."""
+    streams: dict[str, bytes] = {}
+
+    def drain(name, stream):
+        streams[name] = stream.read(READ_LIMIT + 1)
+        if len(streams[name]) > READ_LIMIT:
+            process.kill()
+        stream.close()
+
+    readers = [threading.Thread(target=drain, args=item, daemon=True)
+               for item in (("out", process.stdout), ("err", process.stderr))]
+    for reader in readers:
+        reader.start()
+    try:
+        process.stdin.write(code)
+        process.stdin.close()
+    except (BrokenPipeError, OSError):
+        pass   # the child exited before reading all of it; its output says why
+    timed_out = False
+    try:
+        process.wait(timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        process.kill()   # --die-with-parent takes the child with bwrap
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+    for reader in readers:
+        reader.join(timeout=5)
+    return streams.get("out", b""), streams.get("err", b""), timed_out
+
+
+def _masked_dirs() -> tuple[list[str], list[str]]:
+    """The directories to mask, and the interpreter's directories inside them to bind back."""
     interpreter = {os.path.realpath(sys.prefix), os.path.realpath(sys.base_prefix),
                    os.path.dirname(os.path.realpath(sys.executable))}
-    out = []
-    for directory in MASKED:
-        if not os.path.isdir(directory):
-            continue
+    masked, inside = [d for d in MASKED if os.path.isdir(d)], set()
+    for directory in [*masked, "/tmp"]:   # /tmp is private in the sandbox: an interpreter there comes back too
         real = os.path.realpath(directory)
-        if any(path == real or path.startswith(real + os.sep) for path in interpreter):
-            continue
-        out.append(directory)
-    return out
+        inside |= {path for path in interpreter if path == real or path.startswith(real + os.sep)}
+    # a directory already inside another bound one needs no bind of its own
+    return masked, sorted(p for p in inside if not any(p != q and p.startswith(q + os.sep) for q in inside))

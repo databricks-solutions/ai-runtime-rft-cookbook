@@ -93,6 +93,9 @@ class PublishCheckpoint(CheckpointCallback):
         self.results.append(result)
         logger.warning("rft checkpoint %s: %s in %.1fs (%d files, %.2f GB) -> %s %s", bundle.name, result.status,
                        result.seconds, result.files, result.bytes / 1e9, result.location, result.reason or "")
+        if result.hf_problems:
+            logger.error("rft checkpoint %s: its Hugging Face weights are incomplete: %s", bundle.name,
+                         "; ".join(result.hf_problems))
         if result.status != "published" and self.on_failure != "warn":
             raise RuntimeError(f"publishing {bundle.name} failed: {result.reason}")
         if result.status == "published" and self.keep:

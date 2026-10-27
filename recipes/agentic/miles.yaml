@@ -1,7 +1,7 @@
 # The generic agentic recipe on upstream miles (frameworks/miles). Each episode is the cookbook's
-# Chat Completions harness against miles' session server (agentic_tool_call, session server v2);
-# the cookbook scores it and miles reads the score through --custom-rm-path. Training runs
-# upstream's launcher for the model (model.launcher) with the cookbook's hooks added.
+# Chat Completions harness against miles' session server (agentic_tool_call, session server v2). The
+# cookbook scores the episode, and miles reads the score through --custom-rm-path. Training runs
+# upstream's launcher for the model (model.launcher), with the cookbook's hooks added.
 framework: miles
 stages: [prep, stage_model, train]
 
@@ -37,7 +37,10 @@ train:
   save_interval: 1             # rollouts between saves; every save is published
   save_hf: false               # Hugging Face weights in every save (needed by export and eval)
   seed: 42
-  max_consecutive_exclusions: 32   # excluded episodes in a row that stop the run
+  max_consecutive_exclusions: 32   # excluded episodes, without a decided one between them, that stop the run
+  judge_outage_wait_s: 1800        # when those are judge failures, how long rollouts wait for the judge first
+  diagnostics: false           # log each update's weight drift by parameter family and the
+                               # training entropy (rft_miles.diagnostics)
 
 rollout:
   request_timeout_s: 600
@@ -45,6 +48,8 @@ rollout:
 
 checkpoint:
   hash_files: false
+  keep: null                   # published checkpoints kept (newest first, and the newest with complete
+                               # Hugging Face weights); null keeps all
 
 compute:
   nodes: 1

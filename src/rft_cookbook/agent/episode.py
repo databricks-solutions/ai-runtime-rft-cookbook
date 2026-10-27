@@ -202,8 +202,8 @@ def token_mask_sha256(token_ids, loss_mask) -> str:
 
 def eligibility(record: EpisodeRecord, terminal_span_complete: bool) -> tuple[str, str | None]:
     """Reward eligibility for one collected sample (docs/architecture.md, "Episode format")."""
-    if record.status == "infra_failure":
-        return "excluded", "infra_failure"
+    if record.status != "ok":   # an infrastructure failure, or a driver that stopped without a decision
+        return "excluded", record.status
     if record.score is None or not record.score.valid:
         return "excluded", "invalid_score"
     if record.answer is not None and not terminal_span_complete:

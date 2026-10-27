@@ -1,0 +1,17 @@
+# One-engine shutdown diagnostic. This does not train or modify checkpoints.
+experiment_name: rft-debug-sglang-stop
+compute:
+  num_accelerators: 1
+  accelerator_type: GPU_1xH100
+environment:
+  unity_catalog_image: <miles-image>
+code_source:
+  root_path: .
+  include_paths: [sglang_stop.sh]
+env_variables:
+  MODE: clean
+  MODEL: <staged-model-path>
+  HF_HOME: /tmp/hf
+max_retries: 0
+timeout_minutes: 30
+command: bash ${CODE_SOURCE_PATH}/sglang_stop.sh

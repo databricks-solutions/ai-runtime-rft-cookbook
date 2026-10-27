@@ -119,6 +119,8 @@ class AgentTask:
             "tools_sha256": sha256_json(self.tool_schemas()),
             "terminal": {"kind": self.terminal.kind, "tool": self.terminal.tool},
             "budgets": self.budgets.to_dict(),
+            "scorer": getattr(self.scorer, "policy", None),   # runs scored by different rules do not compare
+            **self.metadata.get("settings", {}),             # what else the task's episodes depend on (an index)
             **extra,
         }
 

@@ -17,9 +17,11 @@ any flag given here. Against upstream's Qwen3.6 launcher this one:
 - downloads nothing and converts nothing (the cookbook stages and converts the model);
 - accepts any 8-GPU node (upstream's accepts only H200);
 - sets the algorithm as verl's defaults have it: token-mean loss, dual-clip 3.0, weight decay
-  0.01, Adam beta2 0.999, MoE auxiliary loss 1e-3 over the global batch (Megatron-Bridge's
-  Qwen3.5/3.6 provider); the recipe's own settings (learning rate, KL, clip ratios, batch) come
-  in `--extra-args`;
+  0.01, Adam beta2 0.999, and no MoE load-balancing loss (verl's trainer runs with
+  `moe_router_load_balancing_type='none'`, which leaves the provider's 1e-3 coefficient unused; with
+  the loss on, the router drifted 4.8x as far as verl's over 100 updates and the policy degraded,
+  with it off the weights move as verl's do); the recipe's own
+  settings (learning rate, KL, clip ratios, batch) come in `--extra-args`;
 - trains and serves on separate GPUs, as verl's separate_async does: the first half of the nodes
   train with verl's parallelism (TP2, CP4, EP8 on each 8 GPUs), the second half serve 8-GPU SGLang
   engines (verl's vLLM rollout is TP8), and the weights go over NCCL after every update;
@@ -139,8 +141,8 @@ def train_args(args: ScriptArgs) -> str:
         "--accumulate-allreduce-grads-in-fp32 "
         "--attention-softmax-in-fp32 "
         "--attention-backend flash "
-        "--moe-aux-loss-coeff 0.001 "
-        "--moe-router-load-balancing-type global_aux_loss "
+        "--moe-aux-loss-coeff 0 "
+        "--moe-router-load-balancing-type none "
         f"--update-weight-buffer-size {2 * 1024**3} "
         f"--actor-num-nodes {trainer_nodes} "
         f"--actor-num-gpus-per-node {args.num_gpus_per_node} "

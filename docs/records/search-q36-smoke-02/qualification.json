@@ -1,0 +1,235 @@
+{
+ "checks": [
+  {
+   "detail": "global_step_3",
+   "name": "export",
+   "passed": true
+  },
+  {
+   "detail": "search-q36-smoke-02/global_step_3",
+   "name": "evaluated_checkpoint",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "evaluations_complete",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "comparable",
+   "passed": true
+  },
+  {
+   "detail": "",
+   "name": "leakage_clean",
+   "passed": true
+  },
+  {
+   "detail": "8 receipts",
+   "name": "same_code",
+   "passed": true
+  }
+ ],
+ "code": {
+  "commit": "2ead10d",
+  "files": 175,
+  "sha256": "56346ca52cbb60c10c80c8ecb1becf0f201bf5b9b493f8242a439b4dda6643a4"
+ },
+ "data": {
+  "dropped": {},
+  "outputs": [
+   {
+    "file": "train.jsonl",
+    "ids_sha256": "ac436a740b133f2bbb7acb7aaf8742b34393dc618f6f6fea6349f6057c02a27a",
+    "rows": 19938,
+    "sha256": "df995e41d3ccb66f5590d871ee8a82d66a35b9492362ab3ed4d81140c331bb87"
+   },
+   {
+    "file": "eval.jsonl",
+    "ids_sha256": "3b0b505b94a46b5feef70c2ff6b7f64eeaacb27eaa33fcb3de7249f2705aac02",
+    "rows": 532,
+    "sha256": "f4d08fcdf06b87fa142f23d0407a73a264350479644769ca8d9117e053599baa"
+   }
+  ],
+  "source": {
+   "repository": "dgslibisey/MuSiQue",
+   "revision": "c8f4f8c9465fb69d31a8eae894c3fd509c4ca321",
+   "train": 19938,
+   "validation": 2417
+  },
+  "split": {
+   "heldout": 500,
+   "heldout_by_hops": {
+    "2": 196,
+    "3": 198,
+    "4": 106
+   },
+   "heldout_rule": "validation rows 500.. stratified by hop count, proportional, seed 20260923",
+   "heldout_sha256": "12b4f232aa61a028f684c690e91020e1836eefc5ede96f237de8c340d1fe417c",
+   "probe": 32,
+   "probe_ids": [
+    "2hop__161785_43074",
+    "3hop1__85073_84360_334118",
+    "2hop__663504_20644",
+    "2hop__107471_440021",
+    "2hop__336874_781580",
+    "3hop1__794285_803028_485952",
+    "2hop__206075_3994",
+    "2hop__367169_2578",
+    "3hop1__94551_65225_37150",
+    "2hop__383_430",
+    "2hop__819531_694982",
+    "4hop1__14045_93667_695397_20634",
+    "2hop__801079_61424",
+    "2hop__131056_43804",
+    "2hop__131056_81842",
+    "3hop1__312602_629330_70419",
+    "2hop__352074_161223",
+    "2hop__384268_207154",
+    "3hop1__465026_35178_826724",
+    "3hop1__428944_194186_725834",
+    "2hop__2545_52453",
+    "2hop__290964_8773",
+    "2hop__116754_821781",
+    "3hop1__75023_58494_51040",
+    "2hop__224575_92217",
+    "2hop__50308_159536",
+    "2hop__94758_417288",
+    "2hop__245438_5303",
+    "4hop1__31753_52584_71250_135051",
+    "2hop__780756_86874",
+    "2hop__716010_79175",
+    "2hop__771312_53028"
+   ],
+   "probe_rule": "the first 32 training questions by sha256(id)",
+   "train": 19938
+  },
+  "task": "search",
+  "tool": "rft_cookbook.tasks.search.data"
+ },
+ "evaluation": {
+  "baseline": "<volume-root>/runs/search-q36-smoke-02/eval/baseline",
+  "rows_sha256": "f4d08fcdf06b87fa142f23d0407a73a264350479644769ca8d9117e053599baa",
+  "samples": 1,
+  "sampling": {
+   "seed": 42,
+   "seeds": "seed + index * samples + k",
+   "temperature": 1.0,
+   "top_k": -1,
+   "top_p": 1.0
+  },
+  "schema_view": "full",
+  "serving": {
+   "args": [
+    "--language-model-only"
+   ],
+   "chat_template_kwargs": {},
+   "engine": "vllm",
+   "reasoning_parser": null,
+   "tensor_parallel": 8,
+   "tool_parser": "qwen3_coder"
+  },
+  "settings": {
+   "budgets": {
+    "generation_reserve": 64,
+    "max_context_tokens": 43008,
+    "max_response_tokens": 40960,
+    "max_tool_calls": null,
+    "max_tool_calls_per_turn": 1,
+    "max_turn_tokens": 4096,
+    "max_turns": 12,
+    "tool_output_bytes": 4000,
+    "tool_timeout_s": 60.0
+   },
+   "prompt_sha256": "cfb1b06529675c0b19a1a29217cf2226f3711bebf22db28405200d1730bfb566",
+   "retrieval": {
+    "index": "<vs-index>"
+   },
+   "scorer": "search/em-v1",
+   "terminal": {
+    "kind": "answer",
+    "tool": null
+   },
+   "tools_sha256": "ab245baae6e59c3426eb05b67bd372fdaaac002b9097f62db47d4d3fdc2d97b3"
+  },
+  "task": "search",
+  "task_version": "1",
+  "trained": "search-q36-smoke-02/global_step_3"
+ },
+ "image": "<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d",
+ "judge": null,
+ "model": {
+  "id": "Qwen/Qwen3.6-35B-A3B",
+  "revision": "995ad96eacd98c81ed38be0c5b274b04031597b0",
+  "staged_revision": "995ad96eacd98c81ed38be0c5b274b04031597b0"
+ },
+ "recipe": {
+  "checked_in_sha256": "a94a1ab88ae79f54e64affb1144aa45b959d92510052d4d2b222caf40c819d61",
+  "deviations": [
+   "train.save_freq",
+   "train.total_training_steps"
+  ],
+  "name": "search/verl/qwen3.6-35b-a3b_h100x16",
+  "overrides": [
+   "train.total_training_steps=3",
+   "train.save_freq=1"
+  ],
+  "resolved_sha256": "2757bbef7a9e1cca960552f7acaaf13210b6579b473c37aa37e66cbc177a27cb"
+ },
+ "result": {
+  "bootstrap_95": [
+   0.005639097744360902,
+   0.07330827067669173
+  ],
+  "mean_difference": 0.039473684210526314,
+  "splits": {
+   "heldout": {
+    "baseline": 0.254,
+    "bootstrap_95": [
+     0.014,
+     0.082
+    ],
+    "mean_difference": 0.048,
+    "paired_questions": 500,
+    "trained": 0.302
+   },
+   "probe": {
+    "baseline": 0.46875,
+    "bootstrap_95": [
+     -0.28125,
+     0.09375
+    ],
+    "mean_difference": -0.09375,
+    "paired_questions": 32,
+    "trained": 0.375
+   }
+  }
+ },
+ "run_id": "search-q36-smoke-02",
+ "schema": "rft-cookbook/qualification/v1",
+ "stages": [
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"train.total_training_steps=2\", \"train.save_freq=1\"], \"stage\": \"train\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"train.total_training_steps=3\", \"train.save_freq=1\"], \"stage\": \"compare\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"train.total_training_steps=3\", \"train.save_freq=1\"], \"stage\": \"eval\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"train.total_training_steps=3\", \"train.save_freq=1\"], \"stage\": \"export\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [\"train.total_training_steps=3\", \"train.save_freq=1\"], \"stage\": \"train\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"baseline_eval\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"prep\"}",
+  "{\"image\": \"<registry>/verl-megatron-air@sha256:fb2f959ad6c423040fe725e4ce8cb0babea7ba1be5ed3e808de8084710f4648d\", \"overrides\": [], \"stage\": \"stage_model\"}"
+ ],
+ "status": "smoke-tested",
+ "topology": {
+  "accelerator": "GPU_8xH100",
+  "nodes": 2,
+  "rollout_gpus": 8,
+  "timeout_minutes": 240,
+  "train_timeout_minutes": 720,
+  "trainer_gpus": 8
+ },
+ "training": {
+  "published": "global_step_3",
+  "step": 3,
+  "weights_sha256": "85cff2563bb1953516e860de46f2715bb73e88704bf328ec7d365a9e19c2bb4e"
+ }
+}

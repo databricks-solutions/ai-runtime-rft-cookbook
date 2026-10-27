@@ -5,7 +5,7 @@ import pytest
 from support import call, make_task
 
 from rft_cookbook.agent.episode import EpisodeRecord
-from rft_cookbook.agent.policy import EpisodePolicy, PolicyStateError
+from rft_cookbook.agent.policy import EpisodePolicy, ParsedCall, PolicyStateError
 from rft_cookbook.tools.base import ToolResult
 
 
@@ -67,6 +67,21 @@ def test_a_malformed_call_is_answered_with_an_error_and_counts_toward_the_limits
     assert record.turns[0].tool_calls[0].executed is False
     decision = turn(policy, calls=[call("echo")])
     assert decision.termination.reason == "tool_budget"
+
+
+@pytest.mark.parametrize("parse_error,arguments", [("unclosed <parameter>", '{"answer": "4"}'), (None, "{not json")])
+def test_a_malformed_terminal_call_is_answered_with_an_error_and_the_episode_goes_on(parse_error, arguments):
+    policy, record = start(make_task(max_tool_calls_per_turn=2))
+    policy.next_request()
+    malformed = ParsedCall("submit", arguments, parse_error=parse_error)
+    decision = turn(policy, calls=[malformed])
+    assert not decision.done and decision.calls[0].action == "error"
+    assert "unknown tool" not in decision.calls[0].error_text
+    assert deliver(policy, decision)
+    policy.next_request()
+    decision = turn(policy, calls=[malformed, call("submit", '{"answer": "5"}')])   # a later well-formed one answers
+    assert decision.termination.reason == "answer" and decision.termination.answer == '{"answer": "5"}'
+    assert [c.status for c in record.turns[1].tool_calls] == ["skipped", "ok"]
 
 
 @pytest.mark.parametrize("arguments,expected", [
