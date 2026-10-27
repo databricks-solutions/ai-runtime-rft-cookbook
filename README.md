@@ -44,7 +44,6 @@ documents. See [results and evaluation details](docs/records/README.md).
 
 | Recipe | Hardware | Coverage and limitations |
 |---|---|---|
-| [Math · GLM-5.3-Flash, 4-layer slice · miles](recipes/math/miles/glm-5.3-flash-4layer_b300x8/recipe.yaml) | 8 B300 | Training and checkpoint publication tested. The slice is for integration testing, not model quality. |
 | [Math · full GLM-5.3-Flash · miles](recipes/math/miles/glm-5.3-flash_b300x32/recipe.yaml) | 32 B300 | Training and resumable checkpoint publication tested; no held-out quality result. |
 | [OfficeQA · full GLM-5.3-Flash · miles](recipes/officeqa/miles/glm-5.3-flash_b300x64/recipe.yaml) | 64 B300 | Experimental: fails during the first training update. |
 | [OfficeQA · Qwen3.5-35B-A3B · verl](recipes/officeqa/verl/qwen3.5-35b-a3b_h100x16/recipe.yaml) | 16 H100 | Historical recipe, superseded by Qwen3.6. |

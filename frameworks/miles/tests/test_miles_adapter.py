@@ -20,8 +20,7 @@ from rft_miles import agent, checkpoint, reward
 from rft_miles.render import GPUS_PER_NODE, LAUNCHER, resolve_run, stage_job
 
 SITE = {"volume_root": "/Volumes/cat/sch/vol/rft"}
-RECIPE = "math/miles/glm-5.3-flash-4layer_b300x8"
-FULL = "math/miles/glm-5.3-flash_b300x32"
+RECIPE = "math/miles/glm-5.3-flash_b300x32"
 QWEN = "officeqa/miles/qwen3.6-35b-a3b_h100x16"
 ROOT = recipes_root()
 
@@ -45,8 +44,8 @@ def test_the_cookbook_hooks_ride_on_upstreams_launcher(tmp_path):
     out, plan, launcher = resolve(tmp_path)
     assert launcher["script"] == "scripts/run_glm5_3_flash.py"
     options = dict(zip(launcher["options"][::2], launcher["options"][1::2]))
-    assert options["--model-name"] == "GLM-5.3-Flash-4layer" and options["--num-gpus-per-node"] == "8"
-    assert options["--num-rollout"] == "2" and options["--rollout-max-response-len"] == "1024"
+    assert options["--model-name"] == "GLM-5.3-Flash" and options["--num-gpus-per-node"] == "8"
+    assert options["--num-rollout"] == "3" and options["--rollout-max-response-len"] == "4096"
     extra = launcher["extra_args"]
     flags = _flags(extra)
     assert flags["--custom-generate-function-path"] == "miles.rollout.generate_hub.agentic_tool_call.generate"
@@ -76,14 +75,15 @@ def test_the_cookbook_hooks_ride_on_upstreams_launcher(tmp_path):
 @pytest.mark.parametrize("override,message", [("compute.nodes=0", "at least 1"),
                                               ("train.save_interval=0", "save_interval"),
                                               ("model.tool_parser=null", "model.tool_parser"),
-                                              ("model.processor_from.revision=main", "processor_from")])
+                                              ("model.processor_from={id: m, revision: main, files: [f]}",
+                                               "processor_from")])
 def test_inconsistent_recipes_do_not_resolve(tmp_path, override, message):
     with pytest.raises(ValueError, match=message):
         resolve(tmp_path, [override])
 
 
 def test_the_full_model_trains_on_four_nodes_in_upstreams_layout(tmp_path):
-    out = resolve_run(FULL, site=SITE, run_id="glm-full-01", overrides=[], out=tmp_path / "full")
+    out = resolve_run(RECIPE, site=SITE, run_id="glm-full-01", overrides=[], out=tmp_path / "full")
     plan, launcher = json.loads((out / "plan.json").read_text()), json.loads((out / "miles.json").read_text())
     options = dict(zip(launcher["options"][::2], launcher["options"][1::2]))
     assert options["--model-name"] == "GLM-5.3-Flash" and options["--num-nodes"] == "4"
@@ -120,7 +120,7 @@ def test_the_qwen_twin_trains_and_evaluates_as_its_verl_recipe_does(tmp_path):
     assert flags["--tito-model"] == "qwen36"   # Qwen3.6's appendable template and token boundary
     assert flags["--save-hf"] == f"{plan['checkpoints']}/iter_{{rollout_id:07d}}/hf"
     assert launcher_path(recipe, Path("/miles")).name == "qwen3_6_35b_a3b.py"   # the cookbook's own launcher
-    assert launcher_path(load_recipe(FULL), Path("/miles")) == Path("/miles/scripts/run_glm5_3_flash.py")
+    assert launcher_path(load_recipe(RECIPE), Path("/miles")) == Path("/miles/scripts/run_glm5_3_flash.py")
     assert plan["abort_file"] == f"{plan['run_dir']}/train/ABORT.json"
     with pytest.raises(ValueError, match="baseline_eval"):   # a borrowed baseline is not evaluated again
         resolve_run(QWEN, site=SITE, run_id="oqa-test-02", out=tmp_path / "run2", overrides=["eval.baseline_run=x-01"])
@@ -187,11 +187,13 @@ def test_the_cookbook_launcher_trains_no_mtp_and_matches_verls_algorithm(monkeyp
     assert out_options <= {f.name for f in dataclasses.fields(module.ScriptArgs)}
 
 
-def test_the_slice_gets_the_full_models_processor_on_its_local_copy(tmp_path):
-    """SGLang loads this architecture's image processor, which the slice does not ship."""
+def test_a_checkpoint_lacking_processor_files_gets_them_on_its_local_copy(tmp_path):
+    """model.processor_from: staged without weights, its files copied into the node-local model."""
     from rft_miles.launch import _add_processor_files
 
-    out, plan, _ = resolve(tmp_path)
+    source = ("{id: zai-org/GLM-5.3-Flash, revision: eb9eb208eb0d988989d07a6a12d0fdeb5f52574a, "
+              "files: [processor_config.json]}")
+    out, plan, _ = resolve(tmp_path, [f"model.processor_from={source}"])
     assert plan["processor_dir"].endswith("/models/GLM-5.3-Flash@eb9eb208eb0d-tokenizer")   # the judge's tokenizer dir
     recipe = yaml.safe_load((out / "recipe.yaml").read_text())
     local = {"processor_dir": str(tmp_path / "processor"), "local_hf": str(tmp_path / "local")}
@@ -417,7 +419,7 @@ def test_a_stage_job_takes_the_compute_its_stage_needs():
     assert train["timeout_minutes"] == 1080 and stage["timeout_minutes"] == 240
     assert (evaluate["gpus"], evaluate["accelerator"], evaluate["image"]) == (8, "GPU_8xH100", "<verl-image>")
     assert (judge["gpus"], judge["accelerator"], judge["timeout_minutes"]) == (1, "GPU_1xA10", 60)
-    full = load_recipe(FULL)
+    full = load_recipe(RECIPE)
     assert stage_job(full, "train")["gpus"] == 32 and stage_job(full, "stage_model")["gpus"] == 8
 
 
@@ -425,7 +427,7 @@ def test_on_several_nodes_node_0_runs_miles_on_the_cluster_and_the_others_join(t
     from rft_cookbook.air import cluster
     from rft_miles import launch
 
-    out = resolve_run(FULL, site={"volume_root": str(tmp_path / "vol")}, run_id="glm-full-02", overrides=[],
+    out = resolve_run(RECIPE, site={"volume_root": str(tmp_path / "vol")}, run_id="glm-full-02", overrides=[],
                       out=tmp_path / "run")
     recipe, paths = launch._load(out)
     calls = []

@@ -42,7 +42,7 @@ The last-`\boxed{}` extraction in `tasks/math/grading.py` follows the MATH bench
 | what | used for | where to read its license |
 |---|---|---|
 | Qwen3.5 (2B and larger), Qwen3.6-35B-A3B | policies | the model cards on Hugging Face |
-| GLM-5.3-Flash (and its 4-layer slice) | policy; hosted judge | the model cards on Hugging Face |
+| GLM-5.3-Flash | policy; hosted judge | the model cards on Hugging Face |
 | MATH (`DigitalLearningGmbH/MATH-lighteval`; mirror `EleutherAI/hendrycks_math`) | math training | the MATH release (MIT) |
 | MATH-500 (`HuggingFaceH4/MATH-500`) | math evaluation | its dataset card |
 | OfficeQA (`databricks/officeqa`) | OfficeQA questions and corpus | the OfficeQA release (code Apache-2.0; data CC BY-SA, see its LICENSE-CC-BY-SA) |
