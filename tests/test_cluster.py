@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import time
 
@@ -100,6 +101,7 @@ def test_a_node_waits_for_rays_processes_to_exit_before_it_leaves(ray, monkeypat
     assert "still alive after 0s" in capsys.readouterr().out
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="reads /proc")
 def test_live_ray_processes_are_read_from_proc():
     import subprocess
 

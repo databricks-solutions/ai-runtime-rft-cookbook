@@ -114,8 +114,8 @@ ARG TRANSFER_QUEUE_VERSION=0.1.10
 # exactly the cu130/torch-2.13 ABI the wheelhouse binaries (TE 2.16.1, apex, flash-attn
 # 2.8.3) were compiled against, and one fewer host has to be reachable.
 #
-# That matters on locked-down networks: download.pytorch.org is NOT routable from
-# the Databricks corp boxes, while the PyPI proxy is. Set this only if you need a
+# That matters on locked-down networks, where download.pytorch.org may be blocked
+# while a PyPI proxy is reachable. Set this only if you need a
 # non-default CUDA variant.
 ARG TORCH_INDEX_URL=
 

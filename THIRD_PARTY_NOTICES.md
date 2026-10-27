@@ -8,7 +8,8 @@ not legal advice and does not establish what any model or dataset may be used fo
 
 ## Files derived from other projects
 
-verl-on-air is the earlier open-source prototype (Apache-2.0) that this cookbook grew out of.
+verl-on-air ([github.com/mshtelma/verl-on-air](https://github.com/mshtelma/verl-on-air)) is the earlier
+open-source prototype (Apache-2.0) that this cookbook grew out of.
 
 | file | origin | license |
 |---|---|---|
@@ -44,8 +45,27 @@ The last-`\boxed{}` extraction in `tasks/math/grading.py` follows the MATH bench
 | Qwen3.5 (2B and larger), Qwen3.6-35B-A3B | policies | the model cards on Hugging Face |
 | GLM-5.3-Flash | policy; hosted judge | the model cards on Hugging Face |
 | MATH (`DigitalLearningGmbH/MATH-lighteval`; mirror `EleutherAI/hendrycks_math`) | math training | the MATH release (MIT) |
-| MATH-500 (`HuggingFaceH4/MATH-500`) | math evaluation | its dataset card |
+| MATH-500 (`HuggingFaceH4/MATH-500`) | math evaluation | a subset of MATH from OpenAI's PRM800K (MIT) |
 | OfficeQA (`databricks/officeqa`) | OfficeQA questions and corpus | the OfficeQA release (code Apache-2.0; data CC BY-SA, see its LICENSE-CC-BY-SA) |
 
 The OfficeQA test fixture (`tests/fixtures/officeqa_episode.json`) uses synthetic table text, not
 benchmark content.
+
+## Upstream NOTICE files
+
+Apache-2.0 section 4(d) carries the NOTICE text of projects whose files are derived here.
+
+verl ([Notice.txt](https://github.com/verl-project/verl/blob/8718ca30a3f002f93b7c4fd99b9b2506718681bc/Notice.txt)):
+
+```
+Copyright 2023-2024 Bytedance Ltd. and/or its affiliates
+```
+
+miles ([NOTICE](https://github.com/radixark/miles/blob/8e99947cc950791b82c74e5392370cb43df70637/NOTICE)):
+
+```
+Miles
+Copyright 2025-2026 RadixArk, Inc.
+This product includes software developed from Slime (https://github.com/THUDM/slime),
+Copyright 2025 Zhipu AI, licensed under the Apache License, Version 2.0.
+```
