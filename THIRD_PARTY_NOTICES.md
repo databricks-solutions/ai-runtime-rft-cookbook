@@ -46,6 +46,7 @@ The last-`\boxed{}` extraction in `tasks/math/grading.py` follows the MATH bench
 | GLM-5.3-Flash | policy; hosted judge | the model cards on Hugging Face |
 | MATH (`DigitalLearningGmbH/MATH-lighteval`; mirror `EleutherAI/hendrycks_math`) | math training | the MATH release (MIT) |
 | MATH-500 (`HuggingFaceH4/MATH-500`) | math evaluation | a subset of MATH from OpenAI's PRM800K (MIT) |
+| MuSiQue (`dgslibisey/MuSiQue`) | agentic search training and evaluation; `tasks/search/heldout.ids` lists 500 of its question IDs | the MuSiQue release (CC BY 4.0) |
 | OfficeQA (`databricks/officeqa`) | OfficeQA questions and corpus | the OfficeQA release (code Apache-2.0; data CC BY-SA, see its LICENSE-CC-BY-SA) |
 
 The OfficeQA test fixture (`tests/fixtures/officeqa_episode.json`) uses synthetic table text, not
