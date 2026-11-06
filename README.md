@@ -138,5 +138,6 @@ and is not covered by Databricks support.
 &copy; 2026 Databricks, Inc. All rights reserved. The source in this repository is provided subject
 to the Databricks License [https://databricks.com/db-license-source]. Files derived from Apache-2.0
 projects keep the Apache License 2.0 ([LICENSE-APACHE](LICENSE-APACHE)); they are listed, with
-every other third-party source, in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). All included
+every other third-party source, in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). The open source
+dependencies and their licenses are listed in [NOTICE.md](NOTICE.md). All included
 or referenced third-party libraries are subject to their own licenses.

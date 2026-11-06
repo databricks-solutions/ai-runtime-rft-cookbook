@@ -5,6 +5,8 @@ below are derived from Apache-2.0 sources: they keep the Apache License 2.0
 ([LICENSE-APACHE](LICENSE-APACHE)), each carries a header naming its origin and whether it was
 modified, and the original copyright notices are retained. This file records attribution; it is
 not legal advice and does not establish what any model or dataset may be used for.
+The open source projects this repository uses or derives from are listed, with their licenses and
+copyright notices, in [NOTICE.md](NOTICE.md).
 
 ## Files derived from other projects
 
@@ -27,16 +29,6 @@ open-source prototype (Apache-2.0) that this cookbook grew out of.
 
 The last-`\boxed{}` extraction in `tasks/math/grading.py` follows the MATH benchmark's evaluation
 (Hendrycks et al., 2021; MIT).
-
-## Used, not copied
-
-| what | used for | license |
-|---|---|---|
-| verl (commit 8718ca30) | the RL framework of the verl adapter (from its image only) | Apache-2.0 |
-| vLLM, Megatron-Core, Megatron-Bridge, Transformer Engine, apex, flash-attn, PyTorch, Ray, Transformers | the training and inference stack in the verl image (`frameworks/verl/image/*.lock`) | each project's own (Apache-2.0, BSD-3-Clause, MIT) |
-| Databricks AI Runtime base image | the verl and miles images' base | Databricks' terms |
-| miles (radixark/miles, commit 8e99947; Slime by Zhipu AI) | the RL framework of the miles adapter (fetched at job start, `rft_miles/miles.lock.json`) | Apache-2.0 |
-| SGLang, Megatron-LM, TorchTitan, bm25s, databricks-sdk | the stack in the miles image (`frameworks/miles/image/`) | each project's own (Apache-2.0, BSD-3-Clause, MIT) |
 
 ## Models and datasets (downloaded at a pinned revision; not redistributed)
 
